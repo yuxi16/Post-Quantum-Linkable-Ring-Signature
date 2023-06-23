@@ -476,16 +476,6 @@ pub trait Prover {
 
         // query the random polynomial at the selected position; for each query, we need the
         // state of the trace at that position + Merkle authentication path
-        // let rand_merkle_proof = random_merkle_root
-        // .prove_batch(&query_positions)
-        // .expect("failed to generate a Merkle proof for constraint queries");
-
-        // let mut rand_evaluations = Vec::new();
-        // for &position in &query_positions {
-        //     let rand_eval:Vec<E::BaseField> = Vec::new();
-        //     rand_eval.push(&random_poly_evaluations[position]);
-        //     rand_evaluations.push(rand_eval);
-        // }
 
         let random_queries = random_commitment.query(&query_positions);
 
@@ -608,28 +598,6 @@ pub trait Prover {
         );
         constraint_commitment
     }
-
-
-    // fn commit_elements<H,E>(
-    //     &self,
-    //     elements: &Vec<E>
-    // ) -> MerkleTree<H>
-    // where
-    //     E: FieldElement<BaseField = Self::BaseField>,
-    //     H: ElementHasher<BaseField = E::BaseField>,
-    // {
-    //     let mut hashes=vec![];
-    //     for i in *elements {
-    //         hashes.push([i]);
-    //     }
-
-    //     let mut leaves=vec![]; 
-    //     for j in &hashes {
-    //         leaves.push(H::hash_elements(j));
-    //     }
-    //     // build Merkle tree out of hashed rows
-    //     MerkleTree::new(leaves).expect("failed to construct trace Merkle tree")
-    // }
 
 
 

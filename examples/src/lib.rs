@@ -14,8 +14,6 @@ pub mod fibonacci;
 #[cfg(feature = "std")]
 pub mod rescue;
 #[cfg(feature = "std")]
-pub mod rescue_raps;
-#[cfg(feature = "std")]
 pub mod siggmimc;
 #[cfg(feature = "std")]
 pub mod sigrescue;
@@ -142,13 +140,6 @@ pub enum ExampleType {
     /// Compute a hash chain using Rescue hash function
     Rescue {
         /// Length of the hash chain; must be a power of two
-        #[structopt(short = "n", default_value = "1024")]
-        chain_length: usize,
-    },
-    /// Compute two hash chains absorbing sequences that are a permutation of each other
-    #[cfg(feature = "std")]
-    RescueRaps {
-        /// Length of the hash chain; must be a power of two and at least 4
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
     },
