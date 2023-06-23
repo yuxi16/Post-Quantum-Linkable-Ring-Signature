@@ -28,6 +28,9 @@ pub struct VerifierChannel<E: FieldElement, H: ElementHasher<BaseField = E::Base
     // constraint queries
     constraint_root: H::Digest,
     constraint_queries: Option<ConstraintQueries<E, H>>,
+    //random queries
+    random_root: H::Digest,
+    random_queries:Option<RandomQueries<E, H>>,
     // FRI proof
     fri_roots: Option<Vec<H::Digest>>,
     fri_layer_proofs: Vec<BatchMerkleProof<H>>,
@@ -54,6 +57,7 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
             commitments,
             trace_queries,
             constraint_queries,
+            random_queries,
             ood_frame,
             fri_proof,
             pow_nonce,
@@ -72,16 +76,17 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
         let fri_options = air.options().to_fri_options();
 
         // --- parse commitments ------------------------------------------------------------------
-        let (trace_roots, constraint_root, fri_roots) = commitments
+        let (trace_roots, constraint_root, random_root,fri_roots) = commitments
             .parse::<H>(
                 num_trace_segments,
                 fri_options.num_fri_layers(lde_domain_size),
             )
             .map_err(|err| VerifierError::ProofDeserializationError(err.to_string()))?;
 
-        // --- parse trace and constraint queries -------------------------------------------------
+        // --- parse trace, constraint and random queries -------------------------------------------------
         let trace_queries = TraceQueries::new(trace_queries, air)?;
         let constraint_queries = ConstraintQueries::new(constraint_queries, air)?;
+        let random_queries:RandomQueries<E,H> = RandomQueries::new(random_queries, air)?;
 
         // --- parse FRI proofs -------------------------------------------------------------------
         let fri_num_partitions = fri_proof.num_partitions();
@@ -106,6 +111,9 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
             // constraint queries
             constraint_root,
             constraint_queries: Some(constraint_queries),
+            //random queries
+            random_root,
+            random_queries:Some(random_queries),
             // FRI proof
             fri_roots: Some(fri_roots),
             fri_layer_proofs,
@@ -134,6 +142,10 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
     /// Returns constraint evaluation commitment sent by the prover.
     pub fn read_constraint_commitment(&self) -> H::Digest {
         self.constraint_root
+    }
+
+    pub fn read_random_commitment(&self) -> H::Digest {
+        self.random_root
     }
 
     /// Returns trace polynomial evaluations at out-of-domain points z and z * g, where g is the
@@ -194,6 +206,18 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
 
         Ok(queries.evaluations)
     }
+
+    pub fn read_random_evaluations(
+        &mut self,
+        positions: &[usize],
+    )-> Result<Table<E>, VerifierError> {
+        let queries = self.random_queries.take().expect("already read");
+        MerkleTree::verify_batch(&self.random_root, positions, &queries.query_proof)
+        .map_err(|_| VerifierError::ConstraintQueryDoesNotMatchCommitment)?;
+
+    Ok(queries.evaluation)
+    }
+
 }
 
 // FRI VERIFIER CHANNEL IMPLEMENTATION
@@ -342,6 +366,34 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> ConstraintQuer
     }
 }
 
+struct RandomQueries<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> {
+    query_proof: BatchMerkleProof<H>,
+    evaluation: Table<E>,
+}
+
+impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> RandomQueries<E, H> {
+    /// Parses the provided constraint queries into evaluations in the specified field and
+    /// corresponding Merkle authentication paths.
+    pub fn new<A: Air<BaseField = E::BaseField>>(
+        queries: Queries,
+        air: &A,
+    ) -> Result<Self, VerifierError> {
+        let num_queries = air.options().num_queries();
+
+        let (query_proof, evaluation) = queries
+            .parse::<H, E>(air.lde_domain_size(), num_queries, 1)
+            .map_err(|err| {
+                VerifierError::ProofDeserializationError(format!(
+                    "constraint evaluation query deserialization failed: {err}"
+                ))
+            })?;
+
+        Ok(Self {
+            query_proof,
+            evaluation,
+        })
+    }
+}
 // TRACE OUT-OF-DOMAIN FRAME
 // ================================================================================================
 

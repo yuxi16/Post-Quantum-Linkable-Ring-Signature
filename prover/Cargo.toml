@@ -31,10 +31,10 @@ fri = { version = "0.6", path = '../fri', package = "winter-fri", default-featur
 log = { version = "0.4", default-features = false }
 math = { version = "0.6", path = "../math", package = "winter-math", default-features = false }
 utils = { version = "0.6", path = "../utils/core", package = "winter-utils", default-features = false }
+rand-utils = { version = "0.6", path = "../utils/rand", package = "winter-rand-utils" }
 
 [dev-dependencies]
 criterion = "0.5"
-rand-utils = { version = "0.6", path = "../utils/rand", package = "winter-rand-utils" }
 
 # Allow math in docs
 [package.metadata.docs.rs]

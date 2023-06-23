@@ -2,7 +2,6 @@
 //
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
-
 use super::{rescue, BaseElement, FieldElement, ProofOptions, CYCLE_LENGTH, TRACE_WIDTH};
 use crate::utils::{are_equal, is_zero, not, EvaluationResult};
 use winterfell::{
@@ -94,6 +93,7 @@ impl Air for RescueAir {
 
         // split periodic values into hash_flag and Rescue round constants
         let hash_flag = periodic_values[0];
+
         let ark = &periodic_values[1..];
 
         // when hash_flag = 1, constraints for Rescue round are enforced

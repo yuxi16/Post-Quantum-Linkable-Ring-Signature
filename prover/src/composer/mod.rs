@@ -3,10 +3,13 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+use crate::ColMatrix;
+
 use super::{constraints::CompositionPoly, StarkDomain, TracePolyTable};
 use air::DeepCompositionCoefficients;
 use math::{add_in_place, fft, mul_acc, polynom, ExtensionOf, FieldElement, StarkField};
 use utils::{collections::Vec, iter_mut};
+
 
 #[cfg(feature = "concurrent")]
 use utils::iterators::*;
@@ -178,6 +181,16 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
         assert_eq!(self.poly_size() - 2, self.degree());
     }
 
+    pub fn add_rand_poly(
+        &mut self,
+        rand_poly:ColMatrix<E>,
+    ){
+        let temp = rand_poly.get_column(0);
+        for (a,b) in &mut self.coefficients.iter_mut().zip(temp) {
+            *a += *b;
+        }
+    }
+    
     // LOW-DEGREE EXTENSION
     // --------------------------------------------------------------------------------------------
     /// Evaluates DEEP composition polynomial over the specified LDE domain and returns the result.

@@ -83,6 +83,12 @@ where
         self.public_coin.reseed(constraint_root);
     }
 
+    /// Commits the prover to the evaluations of the random polynomial.
+    pub fn commit_random(&mut self, random_root: H::Digest) {
+        self.commitments.add::<H>(&random_root);
+        self.public_coin.reseed(random_root);
+    }
+
     /// Saves the evaluations of trace polynomials over the out-of-domain evaluation frame. This
     /// also reseeds the public coin with the hashes of the evaluation frame states.
     pub fn send_ood_trace_states(&mut self, trace_states: &[Vec<E>]) {
@@ -116,6 +122,12 @@ where
     pub fn get_constraint_composition_coeffs(&mut self) -> ConstraintCompositionCoefficients<E> {
         self.air
             .get_constraint_composition_coefficients(&mut self.public_coin)
+            .expect("failed to draw composition coefficients")
+    }
+
+    pub fn get_randpoly_coeffs(&mut self) -> Vec<E>{
+        self.air
+            .get_randpoly_coefficients(&mut self.public_coin)
             .expect("failed to draw composition coefficients")
     }
 
@@ -174,6 +186,7 @@ where
         self,
         trace_queries: Vec<Queries>,
         constraint_queries: Queries,
+        random_queries:Queries,
         fri_proof: FriProof,
     ) -> StarkProof {
         StarkProof {
@@ -182,6 +195,7 @@ where
             ood_frame: self.ood_frame,
             trace_queries,
             constraint_queries,
+            random_queries,
             fri_proof,
             pow_nonce: self.pow_nonce,
         }

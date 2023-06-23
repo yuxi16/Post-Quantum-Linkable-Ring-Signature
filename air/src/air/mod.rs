@@ -6,6 +6,7 @@
 use crate::ProofOptions;
 use crypto::{RandomCoin, RandomCoinError};
 use math::{fft, ExtensibleField, ExtensionOf, FieldElement, StarkField, ToElements};
+use rand_utils::rand_value;
 use utils::collections::{BTreeMap, Vec};
 
 mod trace_info;
@@ -38,6 +39,7 @@ mod tests;
 // ================================================================================================
 
 const MIN_CYCLE_LENGTH: usize = 2;
+
 
 // AIR TRAIT
 // ================================================================================================
@@ -487,6 +489,21 @@ pub trait Air: Send + Sync {
         Ok(result)
     }
 
+    fn get_randpoly_coefficients<E, R>(
+        &self,
+        _public_coin: &mut R,
+    ) -> Result<Vec<E>, RandomCoinError>
+    where
+        E: FieldElement<BaseField = Self::BaseField>,
+        R: RandomCoin<BaseField = Self::BaseField>,
+    {
+        let mut coefficients =Vec::new();
+        for _ in 0..=self.trace_poly_degree() {
+            coefficients.push(rand_value());
+        }
+        Ok(coefficients)
+    }
+
     // LINEAR COMBINATION COEFFICIENTS
     // --------------------------------------------------------------------------------------------
 
@@ -515,6 +532,9 @@ pub trait Air: Send + Sync {
             boundary: b_coefficients,
         })
     }
+
+
+
 
     /// Returns coefficients needed for random linear combinations during construction of DEEP
     /// composition polynomial.

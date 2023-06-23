@@ -177,10 +177,13 @@ where
     // and sends the results back to the verifier.
     let constraint_commitment = channel.read_constraint_commitment();
     public_coin.reseed(constraint_commitment);
+
+    let random_commitment = channel.read_random_commitment();
+    public_coin.reseed(random_commitment);
+
     let z = public_coin
         .draw::<E>()
         .map_err(|_| VerifierError::RandomCoinError)?;
-
     // 3 ----- OOD consistency check --------------------------------------------------------------
     // make sure that evaluations obtained by evaluating constraints over the out-of-domain frame
     // are consistent with the evaluations of composition polynomial columns sent by the prover
@@ -270,6 +273,8 @@ where
         channel.read_queried_trace_states(&query_positions)?;
     let queried_constraint_evaluations = channel.read_constraint_evaluations(&query_positions)?;
 
+    let queried_random_evaluations=channel.read_random_evaluations(&query_positions)?;
+
     // 6 ----- DEEP composition -------------------------------------------------------------------
     // compute evaluations of the DEEP composition polynomial at the queried positions
     let composer = DeepComposer::new(&air, &query_positions, z, deep_coefficients);
@@ -281,7 +286,8 @@ where
     );
     let c_composition = composer
         .compose_constraint_evaluations(queried_constraint_evaluations, ood_constraint_evaluations);
-    let deep_evaluations = composer.combine_compositions(t_composition, c_composition);
+    let r_value=composer.compose_random_evaluations(queried_random_evaluations);
+    let deep_evaluations = composer.combine_compositions(t_composition, c_composition,r_value);
 
     // 7 ----- Verify low-degree proof -------------------------------------------------------------
     // make sure that evaluations of the DEEP composition polynomial we computed in the previous

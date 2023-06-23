@@ -180,7 +180,7 @@ impl<'a, E: FieldElement> ConstraintEvaluationTable<'a, E> {
         Ok(CompositionPoly::new(combined_poly, trace_length, num_cols))
     }
 
-    // DEBUG HELPERS
+    // DEBUG HELPERSzx
     // --------------------------------------------------------------------------------------------
 
     #[cfg(debug_assertions)]

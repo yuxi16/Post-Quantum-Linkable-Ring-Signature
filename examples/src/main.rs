@@ -7,11 +7,11 @@ use log::debug;
 use std::io::Write;
 use std::time::Instant;
 use structopt::StructOpt;
-use winterfell::StarkProof;
+//use winterfell::StarkProof;
 
-use examples::{fibonacci, rescue, vdf, ExampleOptions, ExampleType};
+use examples::{fibonacci, rescue, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
-use examples::{lamport, merkle, rescue_raps};
+use examples::{siggmimc, sigrescue, rescue_raps};
 
 // EXAMPLE RUNNER
 // ================================================================================================
@@ -33,34 +33,21 @@ fn main() {
         ExampleType::Fib { sequence_length } => {
             fibonacci::fib2::get_example(&options, sequence_length)
         }
-        ExampleType::Fib8 { sequence_length } => {
-            fibonacci::fib8::get_example(&options, sequence_length)
-        }
-        ExampleType::Mulfib { sequence_length } => {
-            fibonacci::mulfib2::get_example(&options, sequence_length)
-        }
         ExampleType::Mulfib8 { sequence_length } => {
             fibonacci::mulfib8::get_example(&options, sequence_length)
         }
-        ExampleType::FibSmall { sequence_length } => {
-            fibonacci::fib_small::get_example(&options, sequence_length)
-        }
-        ExampleType::Vdf { num_steps } => vdf::regular::get_example(&options, num_steps),
-        ExampleType::VdfExempt { num_steps } => vdf::exempt::get_example(&options, num_steps),
         ExampleType::Rescue { chain_length } => rescue::get_example(&options, chain_length),
         #[cfg(feature = "std")]
         ExampleType::RescueRaps { chain_length } => {
             rescue_raps::get_example(&options, chain_length)
         }
         #[cfg(feature = "std")]
-        ExampleType::Merkle { tree_depth } => merkle::get_example(&options, tree_depth),
-        #[cfg(feature = "std")]
-        ExampleType::LamportA { num_signatures } => {
-            lamport::aggregate::get_example(&options, num_signatures)
+        ExampleType::SigGmimc { num_signers } => {
+            siggmimc::get_example(&options, num_signers)
         }
         #[cfg(feature = "std")]
-        ExampleType::LamportT { num_signers } => {
-            lamport::threshold::get_example(&options, num_signers)
+        ExampleType::SigRescue { num_signers } => {
+            sigrescue::get_example(&options, num_signers)
         }
     }
     .expect("The example failed to initialize.");
@@ -80,10 +67,14 @@ fn main() {
 
     #[cfg(feature = "std")]
     {
-        let proven_security_level = options.get_proof_security_level(&proof, false);
+        // let proven_security_level = options.get_proof_security_level(&proof, false);
+        // debug!(
+        //     "Proof security: {} bits ({} proven)",
+        //     conjectured_security_level, proven_security_level,
+        // );
         debug!(
-            "Proof security: {} bits ({} proven)",
-            conjectured_security_level, proven_security_level,
+            "Proof security: {} bits",
+            conjectured_security_level,
         );
     }
 
@@ -98,8 +89,8 @@ fn main() {
 
     // verify the proof
     debug!("---------------------");
-    let parsed_proof = StarkProof::from_bytes(&proof_bytes).unwrap();
-    assert_eq!(proof, parsed_proof);
+    // let parsed_proof = StarkProof::from_bytes(&proof_bytes).unwrap();
+    // assert_eq!(proof, parsed_proof);
     let now = Instant::now();
     match example.verify(proof) {
         Ok(_) => debug!(

@@ -22,3 +22,4 @@ pub use evaluation_table::ConstraintEvaluationTable;
 
 mod commitment;
 pub use commitment::ConstraintCommitment;
+pub use commitment::RandomCommitment;

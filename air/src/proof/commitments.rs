@@ -17,6 +17,7 @@ use utils::{
 /// * Commitment to the extended execution trace, which may include commitments to one or more
 ///   execution trace segments.
 /// * Commitment to the evaluations of constraint composition polynomial over LDE domain.
+/// * Commitment to the evaluations of random polynomial over LDE domain.
 /// * Commitments to the evaluations of polynomials at all FRI layers.
 ///
 /// Internally, the commitments are stored as a sequence of bytes. Thus, to retrieve the
@@ -31,11 +32,13 @@ impl Commitments {
     pub fn new<H: Hasher>(
         trace_roots: Vec<H::Digest>,
         constraint_root: H::Digest,
+        random_root: H::Digest,
         fri_roots: Vec<H::Digest>,
     ) -> Self {
         let mut bytes = Vec::new();
         bytes.write(trace_roots);
         bytes.write(constraint_root);
+        bytes.write(random_root);
         bytes.write(fri_roots);
         Commitments(bytes)
     }
@@ -66,7 +69,7 @@ impl Commitments {
         self,
         num_trace_segments: usize,
         num_fri_layers: usize,
-    ) -> Result<(Vec<H::Digest>, H::Digest, Vec<H::Digest>), DeserializationError> {
+    ) -> Result<(Vec<H::Digest>, H::Digest,H::Digest, Vec<H::Digest>), DeserializationError> {
         let mut reader = SliceReader::new(&self.0);
 
         // parse trace commitments
@@ -75,6 +78,9 @@ impl Commitments {
         // parse constraint evaluation commitment:
         let constraint_commitment = H::Digest::read_from(&mut reader)?;
 
+        // parse random evaluation commitment:
+        let random_commitment = H::Digest::read_from(&mut reader)?;
+
         // read FRI commitments (+ 1 for remainder polynomial commitment)
         let fri_commitments = H::Digest::read_batch_from(&mut reader, num_fri_layers + 1)?;
 
@@ -82,7 +88,7 @@ impl Commitments {
         if reader.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);
         }
-        Ok((trace_commitments, constraint_commitment, fri_commitments))
+        Ok((trace_commitments, constraint_commitment,random_commitment, fri_commitments))
     }
 }
 

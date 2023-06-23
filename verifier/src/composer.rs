@@ -182,18 +182,29 @@ impl<E: FieldElement> DeepComposer<E> {
             .collect()
     }
 
+    pub fn compose_random_evaluations(
+        &self,
+        queried_evaluations: Table<E>,
+    ) -> Vec<E> {
+        let n = queried_evaluations.num_rows();
+        let mut result = Vec::<E>::with_capacity(n);
+        for query_values in queried_evaluations.rows() {
+            let mut composition_num = E::ZERO;
+            for &evaluation in query_values.iter() {
+                composition_num = evaluation;
+            }
+            result.push(composition_num);
+        }
+        result
+    }
+
     /// Combines trace and constraint compositions together.
     #[rustfmt::skip]
-    pub fn combine_compositions(&self, t_composition: Vec<E>, c_composition: Vec<E>) -> Vec<E> {
+    pub fn combine_compositions(&self, t_composition: Vec<E>, c_composition: Vec<E>,r_value:Vec<E>) -> Vec<E> {
         assert_eq!(t_composition.len(), self.x_coordinates.len());
         assert_eq!(c_composition.len(), self.x_coordinates.len());
+        assert_eq!(r_value.len(), self.x_coordinates.len());
 
-        let mut result = Vec::with_capacity(self.x_coordinates.len());
-        for (t, c) in t_composition.iter().zip(c_composition) {
-            // compute C(x) by adding the two compositions together
-            result.push(*t + c);
-        }
-
-        result
+        t_composition.iter().zip(c_composition).zip(r_value).map(|((&t, c), r)| t + c + r).collect()
     }
 }

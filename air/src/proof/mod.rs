@@ -59,6 +59,9 @@ pub struct StarkProof {
     /// Decommitments of constraint composition polynomial evaluations at positions queried by
     /// the verifier.
     pub constraint_queries: Queries,
+    /// Decommitments of random polynomial evaluations at positions queried by
+    /// the verifier.
+    pub random_queries: Queries,
     /// Trace and constraint polynomial evaluations at an out-of-domain point.
     pub ood_frame: OodFrame,
     /// Low-degree proof for a DEEP composition polynomial.
@@ -135,6 +138,9 @@ impl StarkProof {
         self.commitments.write_into(&mut result);
         self.trace_queries.write_into(&mut result);
         self.constraint_queries.write_into(&mut result);
+
+        //self.random_queries.write_into(&mut result);
+
         self.ood_frame.write_into(&mut result);
         self.fri_proof.write_into(&mut result);
         result.extend_from_slice(&self.pow_nonce.to_le_bytes());
@@ -160,17 +166,19 @@ impl StarkProof {
         for _ in 0..num_trace_segments {
             trace_queries.push(Queries::read_from(&mut source)?);
         }
-
+       
         // parse the rest of the proof
         let proof = StarkProof {
             context,
             commitments,
             trace_queries,
             constraint_queries: Queries::read_from(&mut source)?,
+            random_queries:Queries::read_from(&mut source)?,
             ood_frame: OodFrame::read_from(&mut source)?,
             fri_proof: FriProof::read_from(&mut source)?,
             pow_nonce: source.read_u64()?,
         };
+      
         if source.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);
         }

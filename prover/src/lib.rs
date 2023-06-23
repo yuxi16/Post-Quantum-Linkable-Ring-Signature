@@ -43,6 +43,7 @@
 #[macro_use]
 extern crate alloc;
 
+//use air::proof::Queries;
 pub use air::{
     proof::StarkProof, Air, AirContext, Assertion, AuxTraceRandElements, BoundaryConstraint,
     BoundaryConstraintGroup, ConstraintCompositionCoefficients, ConstraintDivisor,
@@ -59,7 +60,8 @@ use utils::collections::Vec;
 
 pub use math;
 use math::{
-    fft::infer_degree,
+    //fft::infer_degree,
+    fft,
     fields::{CubeExtension, QuadExtension},
     ExtensibleField, FieldElement, StarkField, ToElements,
 };
@@ -80,7 +82,7 @@ pub use matrix::{ColMatrix, RowMatrix};
 
 mod constraints;
 use constraints::ConstraintEvaluator;
-pub use constraints::{CompositionPoly, ConstraintCommitment};
+pub use constraints::{CompositionPoly, ConstraintCommitment,RandomCommitment};
 
 mod composer;
 use composer::DeepCompositionPoly;
@@ -213,6 +215,7 @@ pub trait Prover {
             pub_inputs_elements,
         );
 
+        
         // 1 ----- Commit to the execution trace --------------------------------------------------
 
         // build computation domain; this is used later for polynomial evaluations
@@ -327,6 +330,8 @@ pub trait Prover {
             now.elapsed().as_millis()
         );
 
+        // println!("length {}",composition_poly.column_len());
+
         // then, build a commitment to the evaluations of the composition polynomial columns
         let constraint_commitment =
             self.build_constraint_commitment::<E>(&composition_poly, &domain);
@@ -335,7 +340,31 @@ pub trait Prover {
         // Merkle tree into the channel
         channel.commit_constraints(constraint_commitment.root());
 
-        // 4 ----- build DEEP composition polynomial ----------------------------------------------
+
+        // 4 ----- commit to random evaluations 
+        let mut rand_temp = Vec::new();
+        rand_temp.push(channel.get_randpoly_coeffs());
+
+        // println!("length {}",rand_temp[0].len());
+        let random_poly=ColMatrix::new(rand_temp);
+
+        // println!("length {}",random_poly.num_rows());
+
+        // build a commitment to the evaluations of the random polynomial
+        let random_commitment =
+            self.build_random_commitment::<E>(&random_poly, &domain);
+
+        // let random_poly_evaluations = fft::evaluate_poly_with_offset(
+        //     &random_poly,
+        //     &domain.trace_twiddles(),
+        //     domain.offset(),
+        //     domain.trace_to_lde_blowup(),
+        // );
+
+        // let random_merkle_root: MerkleTree<Self::HashFn>=self.commit_elements(&random_poly_evaluations);
+        channel.commit_random(random_commitment.root());
+
+        // 5 ----- build DEEP composition polynomial ----------------------------------------------
         #[cfg(feature = "std")]
         let now = Instant::now();
 
@@ -347,6 +376,7 @@ pub trait Prover {
         // is drawn from, and we can potentially save on performance by only drawing this point
         // from an extension field, rather than increasing the size of the field overall.
         let z = channel.get_ood_point();
+       
 
         // evaluate trace and constraint polynomials at the OOD point z, and send the results to
         // the verifier. the trace polynomials are actually evaluated over two points: z and z * g,
@@ -369,6 +399,9 @@ pub trait Prover {
         // merge columns of constraint composition polynomial into the DEEP composition polynomial;
         deep_composition_poly.add_composition_poly(composition_poly, ood_evaluations);
 
+        // merge random polynomial into the DEEP composition polynomial;
+        deep_composition_poly.add_rand_poly(random_poly);
+  
         #[cfg(feature = "std")]
         debug!(
             "Built DEEP composition polynomial of degree {} in {} ms",
@@ -378,17 +411,17 @@ pub trait Prover {
 
         // make sure the degree of the DEEP composition polynomial is equal to trace polynomial
         // degree minus 1.
-        assert_eq!(domain.trace_length() - 2, deep_composition_poly.degree());
+        assert_eq!(domain.trace_length()-1, deep_composition_poly.degree());
 
-        // 5 ----- evaluate DEEP composition polynomial over LDE domain ---------------------------
+        // 6 ----- evaluate DEEP composition polynomial over LDE domain ---------------------------
         #[cfg(feature = "std")]
         let now = Instant::now();
         let deep_evaluations = deep_composition_poly.evaluate(&domain);
         // we check the following condition in debug mode only because infer_degree is an expensive
         // operation
         debug_assert_eq!(
-            domain.trace_length() - 2,
-            infer_degree(&deep_evaluations, domain.offset())
+            domain.trace_length() - 1,
+            fft::infer_degree(&deep_evaluations, domain.offset())
         );
         #[cfg(feature = "std")]
         debug!(
@@ -397,7 +430,7 @@ pub trait Prover {
             now.elapsed().as_millis()
         );
 
-        // 6 ----- compute FRI layers for the composition polynomial ------------------------------
+        // 7 ----- compute FRI layers for the composition polynomial ------------------------------
         #[cfg(feature = "std")]
         let now = Instant::now();
         let mut fri_prover = FriProver::new(air.options().to_fri_options());
@@ -409,7 +442,7 @@ pub trait Prover {
             now.elapsed().as_millis()
         );
 
-        // 7 ----- determine query positions ------------------------------------------------------
+        // 8 ----- determine query positions ------------------------------------------------------
         #[cfg(feature = "std")]
         let now = Instant::now();
 
@@ -425,7 +458,7 @@ pub trait Prover {
             now.elapsed().as_millis()
         );
 
-        // 8 ----- build proof object -------------------------------------------------------------
+        // 9 ----- build proof object -------------------------------------------------------------
         #[cfg(feature = "std")]
         let now = Instant::now();
 
@@ -441,8 +474,23 @@ pub trait Prover {
         // merged into a single value and Merkle authentication paths contain these values already
         let constraint_queries = constraint_commitment.query(&query_positions);
 
+        // query the random polynomial at the selected position; for each query, we need the
+        // state of the trace at that position + Merkle authentication path
+        // let rand_merkle_proof = random_merkle_root
+        // .prove_batch(&query_positions)
+        // .expect("failed to generate a Merkle proof for constraint queries");
+
+        // let mut rand_evaluations = Vec::new();
+        // for &position in &query_positions {
+        //     let rand_eval:Vec<E::BaseField> = Vec::new();
+        //     rand_eval.push(&random_poly_evaluations[position]);
+        //     rand_evaluations.push(rand_eval);
+        // }
+
+        let random_queries = random_commitment.query(&query_positions);
+
         // build the proof object
-        let proof = channel.build_proof(trace_queries, constraint_queries, fri_proof);
+        let proof = channel.build_proof(trace_queries, constraint_queries, random_queries,fri_proof);
         #[cfg(feature = "std")]
         debug!("Built proof object in {} ms", now.elapsed().as_millis());
 
@@ -496,6 +544,26 @@ pub trait Prover {
         (trace_lde, trace_tree, trace_polys)
     }
 
+    fn build_random_commitment<E>(
+        &self,
+        random_poly: &ColMatrix<E>,
+        domain: &StarkDomain<Self::BaseField>,
+    ) -> RandomCommitment<E, Self::HashFn>
+    where
+        E: FieldElement<BaseField = Self::BaseField>,
+    {
+      
+        #[cfg(feature = "std")]
+        let random_evaluations = RowMatrix::evaluate_polys_over::<DEFAULT_SEGMENT_WIDTH>(
+            &random_poly,
+            domain,
+        );
+
+        let commitment = random_evaluations.commit_to_rows();
+        let random_commitment = RandomCommitment::new(random_evaluations, commitment);
+        random_commitment
+    }
+
     /// Evaluates constraint composition polynomial over the LDE domain and builds a commitment
     /// to these evaluations.
     ///
@@ -540,4 +608,29 @@ pub trait Prover {
         );
         constraint_commitment
     }
+
+
+    // fn commit_elements<H,E>(
+    //     &self,
+    //     elements: &Vec<E>
+    // ) -> MerkleTree<H>
+    // where
+    //     E: FieldElement<BaseField = Self::BaseField>,
+    //     H: ElementHasher<BaseField = E::BaseField>,
+    // {
+    //     let mut hashes=vec![];
+    //     for i in *elements {
+    //         hashes.push([i]);
+    //     }
+
+    //     let mut leaves=vec![]; 
+    //     for j in &hashes {
+    //         leaves.push(H::hash_elements(j));
+    //     }
+    //     // build Merkle tree out of hashed rows
+    //     MerkleTree::new(leaves).expect("failed to construct trace Merkle tree")
+    // }
+
+
+
 }

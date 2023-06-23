@@ -12,14 +12,16 @@ use winterfell::{
 
 pub mod fibonacci;
 #[cfg(feature = "std")]
-pub mod lamport;
-#[cfg(feature = "std")]
-pub mod merkle;
 pub mod rescue;
 #[cfg(feature = "std")]
 pub mod rescue_raps;
+#[cfg(feature = "std")]
+pub mod siggmimc;
+#[cfg(feature = "std")]
+pub mod sigrescue;
+
 pub mod utils;
-pub mod vdf;
+
 
 #[cfg(test)]
 mod tests;
@@ -59,15 +61,15 @@ pub struct ExampleOptions {
     blowup_factor: Option<usize>,
 
     /// Grinding factor for query seed
-    #[structopt(short = "g", long = "grinding", default_value = "16")]
+    #[structopt(short = "g", long = "grinding", default_value = "20")]
     grinding_factor: u32,
 
     /// Field extension degree for composition polynomial
-    #[structopt(short = "e", long = "field_extension", default_value = "1")]
+    #[structopt(short = "e", long = "field_extension", default_value = "2")]
     field_extension: u32,
 
     /// Folding factor for FRI protocol
-    #[structopt(short = "f", long = "folding", default_value = "8")]
+    #[structopt(short = "f", long = "folding", default_value = "4")]
     folding_factor: usize,
 }
 
@@ -130,41 +132,12 @@ pub enum ExampleType {
         #[structopt(short = "n", default_value = "1048576")]
         sequence_length: usize,
     },
-    /// Compute a Fibonacci sequence using trace table with 8 registers
-    Fib8 {
-        /// Length of Fibonacci sequence; must be a power of two
-        #[structopt(short = "n", default_value = "1048576")]
-        sequence_length: usize,
-    },
     /// Compute a multiplicative Fibonacci sequence using trace table with 2 registers
-    Mulfib {
-        /// Length of Fibonacci sequence; must be a power of two
-        #[structopt(short = "n", default_value = "1048576")]
-        sequence_length: usize,
-    },
     /// Compute a multiplicative Fibonacci sequence using trace table with 8 registers
     Mulfib8 {
         /// Length of Fibonacci sequence; must be a power of two
         #[structopt(short = "n", default_value = "1048576")]
         sequence_length: usize,
-    },
-    /// Compute a Fibonacci sequence using trace table with 2 registers in `f64` field.
-    FibSmall {
-        /// Length of Fibonacci sequence; must be a power of two
-        #[structopt(short = "n", default_value = "65536")]
-        sequence_length: usize,
-    },
-    /// Execute a simple VDF function
-    Vdf {
-        /// Number of steps in the VDF function; must be a power of two
-        #[structopt(short = "n", default_value = "1048576")]
-        num_steps: usize,
-    },
-    /// Similar to the VDF example, but exempts an extra row from transition constraints.
-    VdfExempt {
-        /// Number of steps in the VDF function; must be one less than a power of two
-        #[structopt(short = "n", default_value = "1048575")]
-        num_steps: usize,
     },
     /// Compute a hash chain using Rescue hash function
     Rescue {
@@ -179,26 +152,19 @@ pub enum ExampleType {
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
     },
-    /// Compute a root of a Merkle path using Rescue hash function
+    ///Compute a linkable ring signture using MIMC hash function
     #[cfg(feature = "std")]
-    Merkle {
-        /// Depth of the Merkle tree; must be one less than a power of two
-        #[structopt(short = "n", default_value = "7")]
-        tree_depth: usize,
+    SigGmimc {
+         /// Number of signers; must be one less than a power of two
+         #[structopt(short = "n", default_value = "7")]
+         num_signers: usize,
     },
-    /// Compute an aggregate Lamport+ signature
+    ///Compute a linkable ring signture using Rescue hash function
     #[cfg(feature = "std")]
-    LamportA {
-        /// Number of signatures to aggregate; must be a power of two
-        #[structopt(short = "n", default_value = "4")]
-        num_signatures: usize,
-    },
-    /// Compute a threshold Lamport+ signature
-    #[cfg(feature = "std")]
-    LamportT {
-        /// Number of signers; must be one less than a power of two
-        #[structopt(short = "n", default_value = "3")]
-        num_signers: usize,
+    SigRescue {
+         /// Number of signers; must be one less than a power of two
+         #[structopt(short = "n", default_value = "7")]
+         num_signers: usize,
     },
 }
 
