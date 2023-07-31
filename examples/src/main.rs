@@ -11,7 +11,7 @@ use structopt::StructOpt;
 
 use examples::{fibonacci, rescue, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
-use examples::{siggmimc, sigrescue};
+use examples::{sigrescue};
 
 // EXAMPLE RUNNER
 // ================================================================================================
@@ -37,10 +37,6 @@ fn main() {
             fibonacci::mulfib8::get_example(&options, sequence_length)
         }
         ExampleType::Rescue { chain_length } => rescue::get_example(&options, chain_length),
-        #[cfg(feature = "std")]
-        ExampleType::SigGmimc { num_signers } => {
-            siggmimc::get_example(&options, num_signers)
-        }
         #[cfg(feature = "std")]
         ExampleType::SigRescue { num_signers } => {
             sigrescue::get_example(&options, num_signers)

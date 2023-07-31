@@ -27,6 +27,7 @@ const SIGN_LENGTH: usize = 32;
 const NUM_QUERIES: usize = 28;
 const BLOWUP_FACTOR: usize = 8;
 const SIGNER_IDX:u128 = 1;
+const EVENTID:u8 = 2;
 
 
 pub fn get_example(
@@ -60,6 +61,7 @@ pub struct RingSigExample<H: ElementHasher> {
     pks: Vec<[BaseElement;2]>,
     signer_idx: u128,
     tag: [BaseElement; 2],
+    eventid: BaseElement,
     _hasher: PhantomData<H>,
 }
 
@@ -72,12 +74,12 @@ impl<H: ElementHasher> RingSigExample<H> {
 
         let now = Instant::now();
 
-        let sk_sequence  = prng_vector::<BaseElement>([rand_value(); 32], 2*(num_signers+1));
+        let sk_sequence  = prng_vector::<BaseElement>([rand_value(); 32], num_signers+1);
         let mut sk_vec = Vec::new();
         let mut c = 0;
         for _ in 0..=num_signers {
-            sk_vec.push([sk_sequence[c],sk_sequence[c+1]]);
-            c+=2;
+            sk_vec.push([sk_sequence[c],BaseElement::ONE]);
+            c+=1;
         }
         let pk_vec = sk_vec.iter().map(|sk| Rescue128::digest(sk).to_elements()).collect::<Vec<_>>();
 
@@ -87,8 +89,10 @@ impl<H: ElementHasher> RingSigExample<H> {
             now.elapsed().as_millis()
         );
 
-        let tag_input = [signer_sk[0],BaseElement::from(9u8)];
+        let tag_input = [signer_sk[0],BaseElement::from(EVENTID)];
         let tag = Rescue128::digest(& tag_input).to_elements();
+
+        let eventid=BaseElement::from(EVENTID);
 
         let now = Instant::now();
         let root = AggPublicKey::new(pk_vec.clone());
@@ -108,6 +112,7 @@ impl<H: ElementHasher> RingSigExample<H> {
             pks: pk_vec,
             signer_idx: SIGNER_IDX,
             tag,
+            eventid,
             _hasher: PhantomData,
         }
     }
@@ -132,12 +137,13 @@ where
             &self.root,
             self.message,
             self.tag,
+            self.eventid,
             self.options.clone(),
         );
 
         // generate execution trace
         let now = Instant::now();
-        let trace = prover.build_trace(&self.root, self.message, &self.signer_sk_key,self.signer_idx);
+        let trace = prover.build_trace(&self.root, self.message, &self.signer_sk_key,self.signer_idx,self.eventid);
         
         let trace_length = trace.length();
         debug!(
@@ -154,31 +160,14 @@ where
        
         // trace.get_column(1).chunks(8).for_each(|row| println!("{:?}", row));
         // println!("values");
-        // trace.get_column(2).chunks(8).for_each(|row| println!("{:?}", row));
-        // println!("values");
         //println!("values: {}",trace.get(1,7));
 
         // generate the proof
         prover.prove(trace).unwrap()
     }
 
-    // fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
-    //     let pub_inputs = PublicInputs {
-    //         pub_key_root: self.root.root().to_elements(),
-    //         num_pub_keys: self.pks.len(),
-    //         message: self.message,
-    //         tag: self.tag,
-    //     };
-    //     winterfell::verify::<RingSigAir, H>(proof, pub_inputs)
-    // }
-
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
-        // let now = Instant::now();
-        // let root = AggPublicKey::new(self.pks.clone());
-        // println!(
-        //     "Verifier generates merkle tree in {} ms",
-        //     now.elapsed().as_millis()
-        // );
+
         let msg = message_to_elements("test message".as_bytes());
         let pub_inputs = PublicInputs {
             pub_key_root: self.root.root().to_elements(),
@@ -186,6 +175,7 @@ where
             message: msg,
             //message: self.message,
             tag: self.tag,
+            eventid: self.eventid,
         };
         winterfell::verify::<RingSigAir, H,DefaultRandomCoin<H>>(proof, pub_inputs)
     }
@@ -196,6 +186,7 @@ where
             num_pub_keys: self.pks.len()+1,
             message: self.message,
             tag: self.tag,
+            eventid: self.eventid,
         };
         winterfell::verify::<RingSigAir, H,DefaultRandomCoin<H>>(proof, pub_inputs)
     }

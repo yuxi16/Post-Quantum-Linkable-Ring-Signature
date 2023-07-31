@@ -14,8 +14,6 @@ pub mod fibonacci;
 #[cfg(feature = "std")]
 pub mod rescue;
 #[cfg(feature = "std")]
-pub mod siggmimc;
-#[cfg(feature = "std")]
 pub mod sigrescue;
 
 pub mod utils;
@@ -142,13 +140,6 @@ pub enum ExampleType {
         /// Length of the hash chain; must be a power of two
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
-    },
-    ///Compute a linkable ring signture using MIMC hash function
-    #[cfg(feature = "std")]
-    SigGmimc {
-         /// Number of signers; must be one less than a power of two
-         #[structopt(short = "n", default_value = "7")]
-         num_signers: usize,
     },
     ///Compute a linkable ring signture using Rescue hash function
     #[cfg(feature = "std")]

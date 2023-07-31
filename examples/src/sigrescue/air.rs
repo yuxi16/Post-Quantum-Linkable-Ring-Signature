@@ -1,7 +1,3 @@
-// use super::{
-//     super::rescue, CYCLE_LENGTHGTH as CYCLE_LENGTH, 
-//     TRACE_WIDTH,
-// };
 use super::{TRACE_WIDTH,SIGN_LENGTH};
 use crate::utils::rescue::{self, CYCLE_LENGTH};
 use crate::utils::{are_equal, is_zero, not, EvaluationResult};
@@ -21,6 +17,7 @@ pub struct PublicInputs {
     pub num_pub_keys: usize,
     pub message: [BaseElement; 2],
     pub tag:[BaseElement; 2],
+    pub eventid: BaseElement,
 }
 
 impl ToElements<BaseElement> for PublicInputs {
@@ -39,6 +36,7 @@ pub struct RingSigAir {
     num_pub_keys: usize,
     message: [BaseElement; 2],
     tag:[BaseElement; 2],
+    eventid:BaseElement,
 }
     
 impl Air for RingSigAir {
@@ -67,6 +65,7 @@ impl Air for RingSigAir {
             num_pub_keys: pub_inputs.num_pub_keys,
             message: pub_inputs.message,
             tag: pub_inputs.tag,
+            eventid:pub_inputs.eventid,
         }
     }
 
@@ -85,10 +84,8 @@ impl Air for RingSigAir {
             Assertion::single(2, tag_pos, self.tag[0]),
             Assertion::single(3, tag_pos, self.tag[1]),
 
-            Assertion::single(3, CYCLE_LENGTH, BaseElement::from(9_u8)),
+            Assertion::single(3, CYCLE_LENGTH, self.eventid),
 
-            // assert that Merkle path resolves to the tree root
-            // check the signer's membership of in the group
             Assertion::single(2, last_step, self.pub_key_root[0]),
             Assertion::single(3, last_step, self.pub_key_root[1]),
         ];

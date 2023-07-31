@@ -10,7 +10,6 @@ use winterfell::{
 };
 
 pub mod rescue;
-pub mod gmimc;
 // CONSTRAINT EVALUATION HELPERS
 // ================================================================================================
 

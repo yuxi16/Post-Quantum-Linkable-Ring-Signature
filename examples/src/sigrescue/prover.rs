@@ -1,7 +1,7 @@
 use super::{
     rescue, AggPublicKey, BaseElement,DefaultRandomCoin,  ElementHasher, FieldElement, RingSigAir,
     PhantomData, ProofOptions, Prover, PublicInputs, TraceTable, HASH_CYCLE_LENGTH,
-    SIGN_LENGTH, TRACE_WIDTH,
+    SIGN_LENGTH, TRACE_WIDTH, 
 };
 #[cfg(feature = "concurrent")]
 use winterfell::iterators::*;
@@ -22,6 +22,7 @@ impl<H: ElementHasher> RingSigProver<H> {
         root: &AggPublicKey,
         message: [BaseElement; 2],
         tag: [BaseElement; 2],
+        eventid: BaseElement,
         options: ProofOptions,
     ) -> Self {
         let pub_inputs = PublicInputs {
@@ -29,6 +30,7 @@ impl<H: ElementHasher> RingSigProver<H> {
             num_pub_keys: root.num_keys(),
             message,
             tag,
+            eventid,
         };
         Self {
             pub_inputs,
@@ -43,6 +45,7 @@ impl<H: ElementHasher> RingSigProver<H> {
         message: [BaseElement; 2],
         signer_sk: &[BaseElement; 2],
         signer_idx: u128,
+        eventid:BaseElement,
     ) -> TraceTable<BaseElement> {
 
         // get the authentication path of signer's index
@@ -86,7 +89,7 @@ impl<H: ElementHasher> RingSigProver<H> {
         // define the trace of tag
         state[1] = signer_sk[0];
         state[2] = signer_sk[0];
-        state[3] = BaseElement::from(9 as u8);
+        state[3] = eventid;
         state[4..].fill(BaseElement::ZERO);
         trace.update_row(step, &state);
         step += 1;
