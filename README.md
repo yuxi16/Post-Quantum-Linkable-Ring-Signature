@@ -4,14 +4,14 @@ The implementation of our signature scheme uses STARK from [winterfell](https://
 - Inject random values in the execution trace of each register.
 - Combine composition polynomial with a random low-degree polynomial before running it through FRI protocol.
 
-## How to run?
+## To run
 Parameters:
 | Syntax      | Description |
 | ----------- | ----------- |
 | -q      | Number of queries       |
 | -b   | Blowup factor        |
 | -f   | Folding factor        |
-| -n   | number of members (exclude signer)        |
+| -n   | Number of members (exclude signer)        |
 
 For 99-bit security with 64 users:
 ```
