@@ -5,7 +5,7 @@
 
 use crate::{errors::RandomCoinError, Digest, ElementHasher, RandomCoin};
 use core::convert::TryInto;
-use math::{FieldElement, StarkField};
+use math::{FieldElement, StarkField, fields::f128::BaseElement};
 use utils::collections::Vec;
 
 // DEFAULT RANDOM COIN IMPLEMENTATION
@@ -81,9 +81,15 @@ impl<B: StarkField, H: ElementHasher<BaseField = B>> RandomCoin for DefaultRando
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     /// Returns a new random coin instantiated with the provided `seed`.
-    fn new(seed: &[Self::BaseField]) -> Self {
+    // fn new(seed: &[Self::BaseField]) -> Self {
+    //     let seed = H::hash_elements(seed);
+    //     Self{ seed, counter: 0 }
+    // }
+
+    fn new(seed: &[Self::BaseField], msg:H::Digest ) -> Self {
         let seed = H::hash_elements(seed);
-        Self { seed, counter: 0 }
+        let seed = H::merge(&[seed,msg]);
+        Self{ seed, counter: 0 }
     }
 
     // RESEEDING
@@ -112,8 +118,9 @@ impl<B: StarkField, H: ElementHasher<BaseField = B>> RandomCoin for DefaultRando
     /// let e2 = coin2.draw::<BaseElement>().unwrap();;
     /// assert_ne!(e1, e2);
     /// ```
-    fn reseed(&mut self, data: H::Digest) {
+    fn reseed(&mut self, data: H::Digest, msg:H::Digest) {
         self.seed = H::merge(&[self.seed, data]);
+        self.seed = H::merge(&[self.seed, msg]);
         self.counter = 0;
     }
 
@@ -145,6 +152,7 @@ impl<B: StarkField, H: ElementHasher<BaseField = B>> RandomCoin for DefaultRando
         self.seed = H::merge_with_int(self.seed, value);
         self.counter = 0;
     }
+
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------

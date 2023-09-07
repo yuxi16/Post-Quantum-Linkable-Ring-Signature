@@ -37,7 +37,6 @@ pub trait Example {
 
 // EXAMPLE OPTIONS
 // ================================================================================================
-
 #[derive(StructOpt, Debug)]
 #[structopt(name = "winterfell", about = "Winterfell examples")]
 pub struct ExampleOptions {

@@ -15,7 +15,6 @@ use winterfell::{
 pub struct PublicInputs {
     pub pub_key_root: [BaseElement; 2],
     pub num_pub_keys: usize,
-    pub message: [BaseElement; 2],
     pub tag:[BaseElement; 2],
     pub eventid: BaseElement,
 }
@@ -24,7 +23,6 @@ impl ToElements<BaseElement> for PublicInputs {
     fn to_elements(&self) -> Vec<BaseElement> {
         let mut result = self.pub_key_root.to_vec();
         result.push(BaseElement::from(self.num_pub_keys as u64));
-        result.extend_from_slice(&self.message);
         result.extend_from_slice(&self.tag);
         result
     }
@@ -34,7 +32,6 @@ pub struct RingSigAir {
     context: AirContext<BaseElement>,
     pub_key_root: [BaseElement; 2],
     num_pub_keys: usize,
-    message: [BaseElement; 2],
     tag:[BaseElement; 2],
     eventid:BaseElement,
 }
@@ -60,10 +57,10 @@ impl Air for RingSigAir {
         ];
         assert_eq!(TRACE_WIDTH, trace_info.width());
         RingSigAir {
-            context: AirContext::new(trace_info, degrees, 7, options),
+            context: AirContext::new(trace_info, degrees, 5, options),
             pub_key_root: pub_inputs.pub_key_root,
             num_pub_keys: pub_inputs.num_pub_keys,
-            message: pub_inputs.message,
+
             tag: pub_inputs.tag,
             eventid:pub_inputs.eventid,
         }
@@ -73,18 +70,16 @@ impl Air for RingSigAir {
         //assertion requires that the value in the specified `column` at the specified `step` is equal to the provided `value`.
         let num_cycles = self.num_pub_keys.next_power_of_two();
         let idx_length = (num_cycles as f32).log2() as usize;
-        let tag_pos = CYCLE_LENGTH*2-1;
+        let tag_pos = CYCLE_LENGTH-1;
         let last_step = SIGN_LENGTH + idx_length * CYCLE_LENGTH - 1;
 
         let assertions = vec![
             // assert the input is the signing message
-            Assertion::single(2, 0, self.message[0]),
-            Assertion::single(3, 0, self.message[1]),
 
             Assertion::single(2, tag_pos, self.tag[0]),
             Assertion::single(3, tag_pos, self.tag[1]),
 
-            Assertion::single(3, CYCLE_LENGTH, self.eventid),
+            Assertion::single(3, 0, self.eventid),
 
             Assertion::single(2, last_step, self.pub_key_root[0]),
             Assertion::single(3, last_step, self.pub_key_root[1]),
@@ -123,12 +118,14 @@ impl Air for RingSigAir {
 
         result.agg_constraint(1, hash_init_flag,  (tag_flag - E::ONE) *(next[0]) * are_equal(current[2], next[4]) * are_equal(current[3], next[5]));
 
-        result.agg_constraint(2, hash_init_flag, tag_flag  * are_equal(next[1], next[2]));
+        result.agg_constraint(2, hash_init_flag, tag_flag  * are_equal(current[1], next[2]));
 
         result.agg_constraint(3, hash_flag,  are_equal(current[1], next[1]));
 
         let value = next[0] * (next[0] - E::ONE);
         result.agg_constraint(4, hash_init_flag, is_zero(value));
+
+        result.agg_constraint(5, hash_flag,tag_flag*  are_equal(current[1], current[2]));
 
 
     }
@@ -142,8 +139,8 @@ impl Air for RingSigAir {
 
         let padding_length = last_step.next_power_of_two();
         let mut counter = vec![BaseElement::ZERO; padding_length];
+        counter[0]=BaseElement::ONE;
         counter[CYCLE_LENGTH-1]=BaseElement::ONE;
-        counter[CYCLE_LENGTH*2-1]=BaseElement::ONE;
         result.push(counter);
 
         result.push(HASH_CYCLE_MASK.to_vec());

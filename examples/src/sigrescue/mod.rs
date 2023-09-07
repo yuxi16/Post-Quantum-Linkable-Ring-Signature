@@ -23,7 +23,7 @@ use prover::RingSigProver;
 // ================================================================================================
 
 const TRACE_WIDTH: usize = 8;
-const SIGN_LENGTH: usize = 32;
+const SIGN_LENGTH: usize = 24;
 const NUM_QUERIES: usize = 28;
 const BLOWUP_FACTOR: usize = 8;
 const SIGNER_IDX:u128 = 1;
@@ -57,7 +57,7 @@ pub struct RingSigExample<H: ElementHasher> {
     options: ProofOptions,
     root: AggPublicKey,
     signer_sk_key: [BaseElement; 2],
-    message: [BaseElement; 2],
+    // message: [BaseElement; 2],
     pks: Vec<[BaseElement;2]>,
     signer_idx: u128,
     tag: [BaseElement; 2],
@@ -70,7 +70,7 @@ impl<H: ElementHasher> RingSigExample<H> {
 
         let num_signers = (num_signers+1).next_power_of_two()-1;
         // message to be signed
-        let message = "test message";
+        // let message = "test message";
 
         let now = Instant::now();
 
@@ -108,7 +108,7 @@ impl<H: ElementHasher> RingSigExample<H> {
             options,
             root,
             signer_sk_key: signer_sk,
-            message: message_to_elements(message.as_bytes()),
+            // message: message_to_elements(message.as_bytes()),
             pks: pk_vec,
             signer_idx: SIGNER_IDX,
             tag,
@@ -135,7 +135,6 @@ where
         // create a prover
         let prover = RingSigProver::<H>::new(
             &self.root,
-            self.message,
             self.tag,
             self.eventid,
             self.options.clone(),
@@ -143,7 +142,7 @@ where
 
         // generate execution trace
         let now = Instant::now();
-        let trace = prover.build_trace(&self.root, self.message, &self.signer_sk_key,self.signer_idx,self.eventid);
+        let trace = prover.build_trace(&self.root,  &self.signer_sk_key,self.signer_idx,self.eventid);
         
         let trace_length = trace.length();
         debug!(
@@ -168,12 +167,10 @@ where
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
 
-        let msg = message_to_elements("test message".as_bytes());
+        //let msg = message_to_elements("test message".as_bytes());
         let pub_inputs = PublicInputs {
             pub_key_root: self.root.root().to_elements(),
             num_pub_keys: self.pks.len(),
-            message: msg,
-            //message: self.message,
             tag: self.tag,
             eventid: self.eventid,
         };
@@ -184,7 +181,6 @@ where
         let pub_inputs = PublicInputs {
             pub_key_root: self.root.root().to_elements(),
             num_pub_keys: self.pks.len()+1,
-            message: self.message,
             tag: self.tag,
             eventid: self.eventid,
         };
@@ -192,27 +188,27 @@ where
     }
 }
 
-fn message_to_elements(message: &[u8]) -> [BaseElement; 2] {
-    // reduce the message to a 32-byte value
-    let hash = *blake3::hash(message).as_bytes();
+// fn message_to_elements(message: &[u8]) -> [BaseElement; 2] {
+//     // reduce the message to a 32-byte value
+//     let hash = *blake3::hash(message).as_bytes();
 
-    // interpret 32 bytes as two 128-bit integers
-    let mut m0 = u128::from_le_bytes(hash[..16].try_into().unwrap());
-    let mut m1 = u128::from_le_bytes(hash[16..].try_into().unwrap());
+//     // interpret 32 bytes as two 128-bit integers
+//     let mut m0 = u128::from_le_bytes(hash[..16].try_into().unwrap());
+//     let mut m1 = u128::from_le_bytes(hash[16..].try_into().unwrap());
 
-    // clear the most significant bit of the first value to ensure that it fits into 127 bits
-    m0 = (m0 << 1) >> 1;
+//     // clear the most significant bit of the first value to ensure that it fits into 127 bits
+//     m0 = (m0 << 1) >> 1;
 
-    // do the same thing with the second value, but also clear 8 more bits to make room for
-    // checksum bits
-    m1 = (m1 << 9) >> 9;
+//     // do the same thing with the second value, but also clear 8 more bits to make room for
+//     // checksum bits
+//     m1 = (m1 << 9) >> 9;
 
-    // compute the checksum and put it into the most significant bits of the second values;
-    // specifically: bit 127 is zeroed out, and 8 bits of checksum should go into bits
-    // 119..127 thus, we just shift the checksum left by 119 bits and OR it with m1 (which
-    // has top 9 bits zeroed out)
-    let checksum = m0.count_zeros() + m1.count_zeros();
-    let m1 = m1 | ((checksum as u128) << 119);
+//     // compute the checksum and put it into the most significant bits of the second values;
+//     // specifically: bit 127 is zeroed out, and 8 bits of checksum should go into bits
+//     // 119..127 thus, we just shift the checksum left by 119 bits and OR it with m1 (which
+//     // has top 9 bits zeroed out)
+//     let checksum = m0.count_zeros() + m1.count_zeros();
+//     let m1 = m1 | ((checksum as u128) << 119);
 
-    [BaseElement::from(m0), BaseElement::from(m1)]
-}
+//     [BaseElement::from(m0), BaseElement::from(m1)]
+// }

@@ -92,8 +92,11 @@ where
     // build a seed for the public coin; the initial seed is a hash of the proof context and the
     // public inputs, but as the protocol progresses, the coin will be reseeded with the info
     // received from the prover
+    let msg=HashFn::hash(b"test");
+
     let mut public_coin_seed = proof.context.to_elements();
     public_coin_seed.append(&mut pub_inputs.to_elements());
+
     
     // create AIR instance for the computation specified in the proof
     let air = AIR::new(proof.get_trace_info(), pub_inputs, proof.options().clone());
@@ -102,7 +105,7 @@ where
     // of static dispatch for selecting two generic parameter: extension field and hash function.
     match air.options().field_extension() {
         FieldExtension::None => {
-            let public_coin = RandCoin::new(&public_coin_seed);
+            let public_coin = RandCoin::new(&public_coin_seed,msg);
             let channel = VerifierChannel::new(&air, proof)?;
             perform_verification::<AIR, AIR::BaseField, HashFn, RandCoin>(air, channel, public_coin)
         },
@@ -110,7 +113,7 @@ where
             if !<QuadExtension<AIR::BaseField>>::is_supported() {
                 return Err(VerifierError::UnsupportedFieldExtension(2));
             }
-            let public_coin = RandCoin::new(&public_coin_seed);
+            let public_coin = RandCoin::new(&public_coin_seed,msg);
             let channel = VerifierChannel::new(&air, proof)?;
             perform_verification::<AIR, QuadExtension<AIR::BaseField>, HashFn, RandCoin>(air, channel, public_coin)
         },
@@ -118,7 +121,7 @@ where
             if !<CubeExtension<AIR::BaseField>>::is_supported() {
                 return Err(VerifierError::UnsupportedFieldExtension(3));
             }
-            let public_coin = RandCoin::new(&public_coin_seed);
+            let public_coin = RandCoin::new(&public_coin_seed,msg);
             let channel = VerifierChannel::new(&air, proof)?;
             perform_verification::<AIR, CubeExtension<AIR::BaseField>, HashFn, RandCoin>(air, channel, public_coin)
         },
@@ -151,17 +154,20 @@ where
     // constraint composition polynomial.
     let trace_commitments = channel.read_trace_commitments();
 
+    let msg=H::hash(b"test");
+
     // reseed the coin with the commitment to the main trace segment
-    public_coin.reseed(trace_commitments[0]);
+    public_coin.reseed(trace_commitments[0],msg);
 
     // process auxiliary trace segments (if any), to build a set of random elements for each segment
     let mut aux_trace_rand_elements = AuxTraceRandElements::<E>::new();
+    let msg=H::hash(b"test");
     for (i, commitment) in trace_commitments.iter().skip(1).enumerate() {
         let rand_elements = air
             .get_aux_trace_segment_random_elements(i, &mut public_coin)
             .map_err(|_| VerifierError::RandomCoinError)?;
         aux_trace_rand_elements.add_segment_elements(rand_elements);
-        public_coin.reseed(*commitment);
+        public_coin.reseed(*commitment,msg);
     }
 
     // build random coefficients for the composition polynomial
@@ -176,10 +182,10 @@ where
     // to the prover, and the prover evaluates trace and constraint composition polynomials at z,
     // and sends the results back to the verifier.
     let constraint_commitment = channel.read_constraint_commitment();
-    public_coin.reseed(constraint_commitment);
+    public_coin.reseed(constraint_commitment,msg);
 
     let random_commitment = channel.read_random_commitment();
-    public_coin.reseed(random_commitment);
+    public_coin.reseed(random_commitment,msg);
 
     let z = public_coin
         .draw::<E>()
@@ -202,7 +208,7 @@ where
         aux_trace_rand_elements,
         z,
     );
-    public_coin.reseed(H::hash_elements(ood_trace_frame.values()));
+    public_coin.reseed(H::hash_elements(ood_trace_frame.values()),msg);
 
     // read evaluations of composition polynomial columns sent by the prover, and reduce them into
     // a single value by computing \sum_{i=0}^{m-1}(z^(i * l) * value_i), where value_i is the
@@ -219,7 +225,7 @@ where
             .fold(E::ZERO, |result, (i, &value)| {
                 result + z.exp_vartime(((i * (air.trace_length())) as u32).into()) * value
             });
-    public_coin.reseed(H::hash_elements(&ood_constraint_evaluations));
+    public_coin.reseed(H::hash_elements(&ood_constraint_evaluations),msg);
 
     // finally, make sure the values are the same
     if ood_constraint_evaluation_1 != ood_constraint_evaluation_2 {
@@ -296,3 +302,4 @@ where
         .verify(&mut channel, &deep_evaluations, &query_positions)
         .map_err(VerifierError::FriVerificationFailed)
 }
+

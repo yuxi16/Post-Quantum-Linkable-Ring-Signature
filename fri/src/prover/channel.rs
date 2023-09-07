@@ -92,8 +92,11 @@ where
             num_queries > 0,
             "number of queries must be greater than zero"
         );
+
+        let msg=H::hash(b"msg");
+
         DefaultProverChannel {
-            public_coin: RandomCoin::new(&[]),
+            public_coin: RandomCoin::new(&[],msg),
             commitments: Vec::new(),
             domain_size,
             num_queries,
@@ -132,8 +135,9 @@ where
     type Hasher = H;
 
     fn commit_fri_layer(&mut self, layer_root: H::Digest) {
+        let msg=H::hash(b"msg");
         self.commitments.push(layer_root);
-        self.public_coin.reseed(layer_root);
+        self.public_coin.reseed(layer_root,msg);
     }
 
     fn draw_fri_alpha(&mut self) -> E {

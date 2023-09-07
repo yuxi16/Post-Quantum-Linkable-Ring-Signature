@@ -31,10 +31,10 @@ pub trait RandomCoin: Sync {
     // --------------------------------------------------------------------------------------------
 
     /// Returns a new random coin instantiated with the provided `seed`.
-    fn new(seed: &[Self::BaseField]) -> Self;
+    fn new(seed: &[Self::BaseField], msg:<Self::Hasher as Hasher>::Digest) -> Self;
 
     /// Reseeds the coin with the specified data by setting the new seed to hash(`seed` || `data`).
-    fn reseed(&mut self, data: <Self::Hasher as Hasher>::Digest);
+    fn reseed(&mut self, data: <Self::Hasher as Hasher>::Digest, msg:<Self::Hasher as Hasher>::Digest);
 
     /// Reseeds the coin with the specified value by setting the new seed to hash(`seed` ||
     /// `value`).
