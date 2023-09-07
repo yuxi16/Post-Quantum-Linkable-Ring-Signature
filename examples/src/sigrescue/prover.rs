@@ -53,7 +53,7 @@ impl<H: ElementHasher> RingSigProver<H> {
         let trace_length = SIGN_LENGTH + HASH_CYCLE_LENGTH * (key_path.len());
     
         // pad the trace length to a power of 2
-        let padding_length = (trace_length+HASH_CYCLE_LENGTH).next_power_of_two();
+        let padding_length = trace_length.next_power_of_two();
         let mut trace = TraceTable::new(TRACE_WIDTH, padding_length);
 
         // get the signer's index bit sequence
@@ -67,21 +67,6 @@ impl<H: ElementHasher> RingSigProver<H> {
         let mut state = vec![BaseElement::ZERO; trace.main_trace_width()];
         let mut step = 0;
 
-        // define the trace of hashing the message
-        // state[0] = BaseElement::ZERO;
-        // state[1] = BaseElement::ZERO;
-        // state[2] = message[0];
-        // state[3] = message[1];
-        // trace.update_row(step, &state);
-        // step += 1;
-
-        // while step < HASH_CYCLE_LENGTH {
-        //     rescue::apply_round(&mut state[2..], step - 1);
-        //     trace.update_row(step, &state);
-        //     step += 1;
-        // } 
-
-    
         // step 8
         // define the trace of tag
         state[0] = BaseElement::ZERO;
@@ -196,27 +181,27 @@ where
     }
 }
 
-fn message_to_elements(message: &[u8]) -> [BaseElement; 2] {
-    // reduce the message to a 32-byte value
-    let hash = *blake3::hash(message).as_bytes();
+// fn message_to_elements(message: &[u8]) -> [BaseElement; 2] {
+//     // reduce the message to a 32-byte value
+//     let hash = *blake3::hash(message).as_bytes();
 
-    // interpret 32 bytes as two 128-bit integers
-    let mut m0 = u128::from_le_bytes(hash[..16].try_into().unwrap());
-    let mut m1 = u128::from_le_bytes(hash[16..].try_into().unwrap());
+//     // interpret 32 bytes as two 128-bit integers
+//     let mut m0 = u128::from_le_bytes(hash[..16].try_into().unwrap());
+//     let mut m1 = u128::from_le_bytes(hash[16..].try_into().unwrap());
 
-    // clear the most significant bit of the first value to ensure that it fits into 127 bits
-    m0 = (m0 << 1) >> 1;
+//     // clear the most significant bit of the first value to ensure that it fits into 127 bits
+//     m0 = (m0 << 1) >> 1;
 
-    // do the same thing with the second value, but also clear 8 more bits to make room for
-    // checksum bits
-    m1 = (m1 << 9) >> 9;
+//     // do the same thing with the second value, but also clear 8 more bits to make room for
+//     // checksum bits
+//     m1 = (m1 << 9) >> 9;
 
-    // compute the checksum and put it into the most significant bits of the second values;
-    // specifically: bit 127 is zeroed out, and 8 bits of checksum should go into bits
-    // 119..127 thus, we just shift the checksum left by 119 bits and OR it with m1 (which
-    // has top 9 bits zeroed out)
-    let checksum = m0.count_zeros() + m1.count_zeros();
-    let m1 = m1 | ((checksum as u128) << 119);
+//     // compute the checksum and put it into the most significant bits of the second values;
+//     // specifically: bit 127 is zeroed out, and 8 bits of checksum should go into bits
+//     // 119..127 thus, we just shift the checksum left by 119 bits and OR it with m1 (which
+//     // has top 9 bits zeroed out)
+//     let checksum = m0.count_zeros() + m1.count_zeros();
+//     let m1 = m1 | ((checksum as u128) << 119);
 
-    [BaseElement::from(m0), BaseElement::from(m1)]
-}
+//     [BaseElement::from(m0), BaseElement::from(m1)]
+// }

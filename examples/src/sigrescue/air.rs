@@ -135,7 +135,7 @@ impl Air for RingSigAir {
         let mut result = vec![];
         let num_cycles = self.num_pub_keys.next_power_of_two();
         let idx_length = (num_cycles as f32).log2() as usize;
-        let last_step = SIGN_LENGTH + idx_length * CYCLE_LENGTH + 1;
+        let last_step = SIGN_LENGTH + idx_length * CYCLE_LENGTH;
 
         let padding_length = last_step.next_power_of_two();
         let mut counter = vec![BaseElement::ZERO; padding_length];
