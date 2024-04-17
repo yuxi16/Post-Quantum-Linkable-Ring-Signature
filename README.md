@@ -39,10 +39,8 @@ Furthermore, leveraging online/offline verification, part of the verification of
 
 Detailed performance comparison can be found in our full [paper](https://eprint.iacr.org/2024/553.pdf).
 ###  Influence of Grinding on Proving time 
-In ethSTARK, an optimization technique known as grinding is incorporated within the Fiat-Shamir Transformation. Grinding requires prover to compute a proof-of-work solution to
-reduce the computation power of the cheating prover.
-
-Due to the inclusion of this proof-of-work, our implementation experiences fluctuations and additional overhead in proving time. The impact of grinding can, in some instances, exceed the influence of the ring size on the proving time in our instantiation. 
+In the ethSTARK, an optimization technique called grinding is integrated into the Fiat-Shamir Transformation to limit the computational capabilities of a potential cheating prover. Specifically, grinding requires the prover to solve a proof-of-work puzzle as part of the proof generation process.
+However, the inclusion of grinding introduces some variability and additional overhead in the proving time. The impact of grinding can, in some instances, exceed the influence of the ring size on the proving time in our instantiation. 
 
 ## To run
 Parameters:
