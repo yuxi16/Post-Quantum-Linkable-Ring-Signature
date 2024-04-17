@@ -75,10 +75,8 @@ impl<H: ElementHasher> RingSigExample<H> {
 
         let sk_sequence = prng_vector::<BaseElement>([rand_value(); 32], num_signers + 1);
         let mut sk_vec = Vec::new();
-        let mut c = 0;
-        for _ in 0..=num_signers {
+        for c in 0..=num_signers {
             sk_vec.push([sk_sequence[c], BaseElement::ONE]);
-            c += 1;
         }
         let pk_vec = sk_vec
             .iter()

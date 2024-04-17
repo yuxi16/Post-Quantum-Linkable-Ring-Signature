@@ -11,9 +11,9 @@ use winterfell::{
 };
 
 pub mod fibonacci;
-#[cfg(feature = "std")]
+
 pub mod rescue;
-#[cfg(feature = "std")]
+
 pub mod sigrescue;
 
 pub mod utils;

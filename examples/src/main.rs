@@ -8,10 +8,10 @@ use std::io::Write;
 use std::time::Instant;
 use structopt::StructOpt;
 //use winterfell::StarkProof;
+use examples::rescue;
 #[cfg(feature = "std")]
 use examples::sigrescue;
-use examples::{fibonacci, rescue, ExampleOptions, ExampleType};
-
+use examples::{fibonacci, ExampleOptions, ExampleType};
 // EXAMPLE RUNNER
 // ================================================================================================
 

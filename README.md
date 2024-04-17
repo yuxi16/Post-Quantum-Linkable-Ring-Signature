@@ -2,7 +2,7 @@
 
 This repository contains the implementations of our paper "Efficient Linkable Ring Signatures: New Framework and Post-Quantum Instantiations", which was published at ESORICS 2024.
 
-**WARNING**: This project is developed for experimental and demonstration purposes.   The code has not been audited and may contain bugs, vulnerabilities, or other security flaws. This implementation is NOT ready for production use.
+**WARNING**: This project is for experimental demonstration and efficiency evaluation. The code has not been audited and may contain bugs, vulnerabilities, or other security flaws. This implementation is NOT ready for production use.
 
 
 ## Paper Overview
@@ -24,24 +24,18 @@ The zero-knowledge enhancement of ethSTARK is informally outlined as follows:
 - Mask DEEP composition polynomial with a random polynomial.
 
 ### Build SoK from  non-interactive zk-ethSTARK
-The non-interaction
-property is achieved through the use of the Fiat-Shamir transformation (i.e., using hash $H$ to generate the
-challenge). We let $H$ also takes
-the message $m$ as input to generate the challenge, the resulting zero knowledge non-interactive ethSTARK will result in a SoK on $m$.
+The non-interaction property is achieved through the use of the Fiat-Shamir transformation, which involves using a hash function $H$ to generate the challenge. In our non-interactive zk-ethSTARK, we extend the input of $H$ to include the message $m$ when generating the challenge, thus turning the resulting scheme into an SoK on the message $m$.
 
 ### Construct LRS from SoK
 We use SoK to build LRS by demonstrating  the correct
-signing of message $m$.  Also, we crafted the program representation of the execution trace
-to enhance the efficiency of the signing process. 
+signing process of message $m$.  Also, we crafted the program representation of the execution trace to enhance the efficiency of the signing process. 
 
 ## Performance
 Our LRS has a signature size of O(polylog(log n)). By comparison,
 existing post-quantum ring signatures, regardless of linkability considerations, have signature sizes of O(log n) at best. At 128-bit security, our LRS
 has the smallest signature size among all post-quantum LRS when ring size is larger than 32.
 
-Furthermore, leveraging
-online/offline verification, part of the verification of signatures on the
-same ring can be shared, resulting in a state-of-the-art amortized verification cost of O(polylog(log n)).
+Furthermore, leveraging online/offline verification, part of the verification of signatures on the same ring can be shared, resulting in a state-of-the-art amortized verification cost of O(polylog(log n)).
 
 Detailed performance comparison can be found in our full [paper](https://eprint.iacr.org/2024/553.pdf).
 ###  Influence of Grinding on Proving time 
