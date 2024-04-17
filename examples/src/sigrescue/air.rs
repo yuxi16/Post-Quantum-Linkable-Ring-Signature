@@ -44,7 +44,6 @@ impl Air for RingSigAir {
     // --------------------------------------------------------------------------------------------
     #[rustfmt::skip]
     fn new(trace_info: TraceInfo, pub_inputs: PublicInputs, options: ProofOptions) -> Self {
-        
         // transition constraint degrees defines the total number of transition constraints and their expected degrees
         let degrees = vec![
             // rescue alpha is 5
@@ -60,7 +59,6 @@ impl Air for RingSigAir {
             context: AirContext::new(trace_info, degrees, 5, options),
             pub_key_root: pub_inputs.pub_key_root,
             num_pub_keys: pub_inputs.num_pub_keys,
-
             tag: pub_inputs.tag,
             eventid:pub_inputs.eventid,
         }

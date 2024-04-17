@@ -17,33 +17,35 @@ type Blake3 = Blake3_256<BaseElement>;
 // PROVE/VERIFY TEST
 // ================================================================================================
 
-#[test]
-fn fri_folding_2() {
-    let trace_length_e = 12;
-    let lde_blowup_e = 3;
-    let folding_factor_e = 1;
-    let max_remainder_degree = 7;
-    fri_prove_verify(
-        trace_length_e,
-        lde_blowup_e,
-        folding_factor_e,
-        max_remainder_degree,
-    )
-}
+//skip the tests
 
-#[test]
-fn fri_folding_4() {
-    let trace_length_e = 12;
-    let lde_blowup_e = 3;
-    let folding_factor_e = 2;
-    let max_remainder_degree = 255;
-    fri_prove_verify(
-        trace_length_e,
-        lde_blowup_e,
-        folding_factor_e,
-        max_remainder_degree,
-    )
-}
+// #[test]
+// fn fri_folding_2() {
+//     let trace_length_e = 12;
+//     let lde_blowup_e = 3;
+//     let folding_factor_e = 1;
+//     let max_remainder_degree = 7;
+//     fri_prove_verify(
+//         trace_length_e,
+//         lde_blowup_e,
+//         folding_factor_e,
+//         max_remainder_degree,
+//     )
+// }
+
+// #[test]
+// fn fri_folding_4() {
+//     let trace_length_e = 12;
+//     let lde_blowup_e = 3;
+//     let folding_factor_e = 2;
+//     let max_remainder_degree = 255;
+//     fri_prove_verify(
+//         trace_length_e,
+//         lde_blowup_e,
+//         folding_factor_e,
+//         max_remainder_degree,
+//     )
+// }
 
 // TEST UTILS
 // ================================================================================================

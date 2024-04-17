@@ -212,7 +212,7 @@ impl<'a, E: FieldElement> ConstraintEvaluationTable<'a, E> {
 
         // randomize the composition polynomial
         for i in 0..rand.len() {
-            combined_poly[i] = combined_poly[i] + rand[i];
+            combined_poly[i] += rand[i];
         }
 
         // chunck the high degree polynomials into smaller ones

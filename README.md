@@ -43,7 +43,7 @@ Furthermore, leveraging
 online/offline verification, part of the verification of signatures on the
 same ring can be shared, resulting in a state-of-the-art amortized verification cost of O(polylog(log n)).
 
-Detailed performance comparison can be found in our full [paper](https://eprint.iacr.org/2024/553.pdf). .
+Detailed performance comparison can be found in our full [paper](https://eprint.iacr.org/2024/553.pdf).
 ###  Influence of Grinding on Proving time 
 In ethSTARK, an optimization technique known as grinding is incorporated within the Fiat-Shamir Transformation. Grinding requires prover to compute a proof-of-work solution to
 reduce the computation power of the cheating prover.

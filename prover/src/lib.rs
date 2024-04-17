@@ -324,8 +324,7 @@ pub trait Prover {
         //   trace_length - 1
         #[cfg(feature = "std")]
         let now = Instant::now();
-        let mut randcons_temp = Vec::new();
-        randcons_temp.push(channel.get_randcons_coeffs());
+        let randcons_temp = vec![channel.get_randcons_coeffs()];
         let temp = randcons_temp[0].clone();
         let randcons_coe = randcons_temp[0].clone();
 
@@ -355,8 +354,7 @@ pub trait Prover {
         channel.commit_constraints(constraint_commitment.root());
 
         // 4 ----- commit to random evaluations
-        let mut rand_temp = Vec::new();
-        rand_temp.push(channel.get_randpoly_coeffs());
+        let rand_temp = vec![channel.get_randpoly_coeffs()];
 
         // println!("length {}",rand_temp[0].len());
         let random_poly = ColMatrix::new(rand_temp);
@@ -466,7 +464,7 @@ pub trait Prover {
         );
 
         // 9 ----- build proof object -------------------------------------------------------------
-        #[cfg(feature = "std")]
+        //#[cfg(feature = "std")]
         // let now = Instant::now();
 
         // generate FRI proof
@@ -488,9 +486,8 @@ pub trait Prover {
         // build the proof object
         let proof =
             channel.build_proof(trace_queries, constraint_queries, random_queries, fri_proof);
-        // #[cfg(feature = "std")]
+        //#[cfg(feature = "std")]
         // debug!("Built proof object in {} ms", now.elapsed().as_millis());
-
         Ok(proof)
     }
 
@@ -549,13 +546,11 @@ pub trait Prover {
     where
         E: FieldElement<BaseField = Self::BaseField>,
     {
-        #[cfg(feature = "std")]
         let random_evaluations =
-            RowMatrix::evaluate_polys_over::<DEFAULT_SEGMENT_WIDTH>(&random_poly, domain);
+            RowMatrix::evaluate_polys_over::<DEFAULT_SEGMENT_WIDTH>(random_poly, domain);
 
         let commitment = random_evaluations.commit_to_rows();
-        let random_commitment = RandomCommitment::new(random_evaluations, commitment);
-        random_commitment
+        RandomCommitment::new(random_evaluations, commitment)
     }
 
     /// Evaluates constraint composition polynomial over the LDE domain and builds a commitment
