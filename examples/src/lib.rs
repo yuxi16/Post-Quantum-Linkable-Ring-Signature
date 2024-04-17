@@ -18,7 +18,6 @@ pub mod sigrescue;
 
 pub mod utils;
 
-
 #[cfg(test)]
 mod tests;
 
@@ -143,9 +142,9 @@ pub enum ExampleType {
     ///Compute a linkable ring signture using Rescue hash function
     #[cfg(feature = "std")]
     SigRescue {
-         /// Number of signers; must be one less than a power of two
-         #[structopt(short = "n", default_value = "7")]
-         num_signers: usize,
+        /// Number of signers; must be one less than a power of two
+        #[structopt(short = "n", default_value = "7")]
+        num_signers: usize,
     },
 }
 

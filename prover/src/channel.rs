@@ -51,14 +51,14 @@ where
     pub fn new(air: &'a A, mut pub_inputs_elements: Vec<A::BaseField>) -> Self {
         let context = Context::new::<A::BaseField>(air.trace_info(), air.options().clone());
 
-        let msg=H::hash(b"test");
+        let msg = H::hash(b"test");
 
         // build a seed for the public coin; the initial seed is a hash of the proof context and
         // the public inputs, but as the protocol progresses, the coin will be reseeded with the
         // info sent to the verifier
         let mut coin_seed_elements = context.to_elements();
         coin_seed_elements.append(&mut pub_inputs_elements);
-    
+
         ProverChannel {
             air,
             public_coin: RandomCoin::new(&coin_seed_elements, msg),
@@ -75,39 +75,51 @@ where
 
     /// Commits the prover the extended execution trace.
     pub fn commit_trace(&mut self, trace_root: H::Digest) {
-        let msg=H::hash(b"test");
+        let msg = H::hash(b"test");
         self.commitments.add::<H>(&trace_root);
-        self.public_coin.reseed(trace_root,msg);
+        self.public_coin.reseed(trace_root, msg);
+    }
+
+    pub fn commit_randcons(&mut self, randcons_root: H::Digest) {
+        let msg = H::hash(b"test");
+        self.commitments.add::<H>(&randcons_root);
+        self.public_coin.reseed(randcons_root, msg);
     }
 
     /// Commits the prover to the evaluations of the constraint composition polynomial.
     pub fn commit_constraints(&mut self, constraint_root: H::Digest) {
-        let msg=H::hash(b"test");
+        let msg = H::hash(b"test");
         self.commitments.add::<H>(&constraint_root);
-        self.public_coin.reseed(constraint_root,msg);
+        self.public_coin.reseed(constraint_root, msg);
     }
 
     /// Commits the prover to the evaluations of the random polynomial.
     pub fn commit_random(&mut self, random_root: H::Digest) {
-        let msg=H::hash(b"test");
+        let msg = H::hash(b"test");
         self.commitments.add::<H>(&random_root);
-        self.public_coin.reseed(random_root,msg);
+        self.public_coin.reseed(random_root, msg);
     }
 
     /// Saves the evaluations of trace polynomials over the out-of-domain evaluation frame. This
     /// also reseeds the public coin with the hashes of the evaluation frame states.
     pub fn send_ood_trace_states(&mut self, trace_states: &[Vec<E>]) {
-        let msg=H::hash(b"test");
+        let msg = H::hash(b"test");
         let result = self.ood_frame.set_trace_states(trace_states);
-        self.public_coin.reseed(H::hash_elements(&result),msg);
+        self.public_coin.reseed(H::hash_elements(&result), msg);
+    }
+
+    pub fn send_ood_randcons_evaluations(&mut self, evaluation: &[E]) {
+        let msg = H::hash(b"test");
+        self.ood_frame.set_randcons_evaluations(evaluation);
+        self.public_coin.reseed(H::hash_elements(evaluation), msg);
     }
 
     /// Saves the evaluations of constraint composition polynomial columns at the out-of-domain
     /// point. This also reseeds the public coin wit the hash of the evaluations.
     pub fn send_ood_constraint_evaluations(&mut self, evaluations: &[E]) {
-        let msg=H::hash(b"test");
+        let msg = H::hash(b"test");
         self.ood_frame.set_constraint_evaluations(evaluations);
-        self.public_coin.reseed(H::hash_elements(evaluations),msg);
+        self.public_coin.reseed(H::hash_elements(evaluations), msg);
     }
 
     // PUBLIC COIN METHODS
@@ -132,7 +144,14 @@ where
             .expect("failed to draw composition coefficients")
     }
 
-    pub fn get_randpoly_coeffs(&mut self) -> Vec<E>{
+    pub fn get_randpoly_coeffs(&mut self) -> Vec<E> {
+        self.air
+            .get_randpoly_coefficients(&mut self.public_coin)
+            .expect("failed to draw composition coefficients")
+    }
+
+    pub fn get_randcons_coeffs(&mut self) -> Vec<E> {
+        //let num_colums = self.air.context().num_constraint_composition_columns();
         self.air
             .get_randpoly_coefficients(&mut self.public_coin)
             .expect("failed to draw composition coefficients")
@@ -193,7 +212,7 @@ where
         self,
         trace_queries: Vec<Queries>,
         constraint_queries: Queries,
-        random_queries:Queries,
+        random_queries: Queries,
         fri_proof: FriProof,
     ) -> StarkProof {
         StarkProof {
@@ -223,9 +242,9 @@ where
 
     /// Commits the prover to a FRI layer.
     fn commit_fri_layer(&mut self, layer_root: H::Digest) {
-        let msg=H::hash(b"test");
+        let msg = H::hash(b"test");
         self.commitments.add::<H>(&layer_root);
-        self.public_coin.reseed(layer_root,msg);
+        self.public_coin.reseed(layer_root, msg);
     }
 
     /// Returns a new alpha drawn from the public coin.
@@ -233,4 +252,3 @@ where
         self.public_coin.draw().expect("failed to draw FRI alpha")
     }
 }
-

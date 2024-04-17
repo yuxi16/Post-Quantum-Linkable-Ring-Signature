@@ -69,7 +69,6 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> ConstraintComm
     }
 }
 
-
 pub struct RandomCommitment<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> {
     evaluations: RowMatrix<E>,
     commitment: MerkleTree<H>,
@@ -79,7 +78,7 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> RandomCommitme
     /// Creates a new constraint evaluation commitment from the provided composition polynomial
     /// evaluations and the corresponding Merkle tree commitment.
     pub fn new(evaluations: RowMatrix<E>, commitment: MerkleTree<H>) -> RandomCommitment<E, H> {
-       // one row
+        // one row
         RandomCommitment {
             evaluations,
             commitment,
@@ -116,4 +115,3 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> RandomCommitme
         Queries::new(merkle_proof, evaluations)
     }
 }
-

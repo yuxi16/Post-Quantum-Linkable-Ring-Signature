@@ -28,10 +28,10 @@ impl<E: FieldElement> CompositionPoly<E> {
             trace_length.is_power_of_two(),
             "trace length must be a power of 2, but was {trace_length}"
         );
-        assert!(
-            trace_length < coefficients.len(),
-            "trace length must be smaller than size of composition polynomial"
-        );
+        // assert!(
+        //     trace_length < coefficients.len(),
+        //     "trace length must be smaller than size of composition polynomial"
+        // );
 
         let polys = segment(coefficients, trace_length, num_cols);
 
@@ -59,17 +59,14 @@ impl<E: FieldElement> CompositionPoly<E> {
     pub fn column_degree(&self) -> usize {
         self.column_len() - 1
     }
-
     /// Returns evaluations of all composition polynomial columns at point z.
     pub fn evaluate_at(&self, z: E) -> Vec<E> {
         self.data.evaluate_columns_at(z)
     }
-
     /// Returns a reference to the matrix of individual column polynomials.
     pub fn data(&self) -> &ColMatrix<E> {
         &self.data
     }
-
     /// Transforms this composition polynomial into a vector of individual column polynomials.
     pub fn into_columns(self) -> Vec<Vec<E>> {
         self.data.into_columns()

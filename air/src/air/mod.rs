@@ -40,7 +40,6 @@ mod tests;
 
 const MIN_CYCLE_LENGTH: usize = 2;
 
-
 // AIR TRAIT
 // ================================================================================================
 /// Describes algebraic intermediate representation of a computation.
@@ -497,7 +496,7 @@ pub trait Air: Send + Sync {
         E: FieldElement<BaseField = Self::BaseField>,
         R: RandomCoin<BaseField = Self::BaseField>,
     {
-        let mut coefficients =Vec::new();
+        let mut coefficients = Vec::new();
         for _ in 0..=self.trace_poly_degree() {
             coefficients.push(rand_value());
         }
@@ -532,9 +531,6 @@ pub trait Air: Send + Sync {
             boundary: b_coefficients,
         })
     }
-
-
-
 
     /// Returns coefficients needed for random linear combinations during construction of DEEP
     /// composition polynomial.

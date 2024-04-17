@@ -12,7 +12,7 @@ use utils::{
 // TYPE ALIASES
 // ================================================================================================
 
-type ParsedOodFrame<E> = (Vec<E>, Vec<E>);
+type ParsedOodFrame<E> = (Vec<E>, Vec<E>, Vec<E>);
 
 // OUT-OF-DOMAIN FRAME
 // ================================================================================================
@@ -30,6 +30,7 @@ type ParsedOodFrame<E> = (Vec<E>, Vec<E>);
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct OodFrame {
     trace_states: Vec<u8>,
+    randcons_eval: Vec<u8>,
     evaluations: Vec<u8>,
 }
 
@@ -64,6 +65,18 @@ impl OodFrame {
         result.write_into(&mut self.trace_states);
 
         result
+    }
+
+    pub fn set_randcons_evaluations<E: FieldElement>(&mut self, randcons_eval: &[E]) {
+        assert!(
+            self.randcons_eval.is_empty(),
+            "randcons evaluations have already been set"
+        );
+        assert!(
+            !randcons_eval.is_empty(),
+            "cannot set to empty constraint evaluations"
+        );
+        randcons_eval.write_into(&mut self.randcons_eval)
     }
 
     /// Updates constraint evaluation portion of this out-of-domain frame.
@@ -119,6 +132,13 @@ impl OodFrame {
             return Err(DeserializationError::UnconsumedBytes);
         }
 
+        // parse the random evaluations
+        let mut reader = SliceReader::new(&self.randcons_eval);
+        let randcons = E::read_batch_from(&mut reader, 1)?;
+        if reader.has_more_bytes() {
+            return Err(DeserializationError::UnconsumedBytes);
+        }
+
         // parse the constraint evaluations
         let mut reader = SliceReader::new(&self.evaluations);
         let evaluations = E::read_batch_from(&mut reader, num_evaluations)?;
@@ -126,7 +146,7 @@ impl OodFrame {
             return Err(DeserializationError::UnconsumedBytes);
         }
 
-        Ok((trace, evaluations))
+        Ok((trace, randcons, evaluations))
     }
 }
 
@@ -136,6 +156,9 @@ impl Serializable for OodFrame {
         // write trace rows
         target.write_u16(self.trace_states.len() as u16);
         target.write_bytes(&self.trace_states);
+
+        target.write_u16(self.randcons_eval.len() as u16);
+        target.write_bytes(&self.randcons_eval);
 
         // write constraint evaluations row
         target.write_u16(self.evaluations.len() as u16);
@@ -153,12 +176,15 @@ impl Deserializable for OodFrame {
         let num_trace_state_bytes = source.read_u16()? as usize;
         let trace_states = source.read_vec(num_trace_state_bytes)?;
 
+        let num_randcons_eval_bytes = source.read_u16()? as usize;
+        let randcons_eval = source.read_vec(num_randcons_eval_bytes)?;
         // read constraint evaluations row
         let num_constraint_evaluation_bytes = source.read_u16()? as usize;
         let evaluations = source.read_vec(num_constraint_evaluation_bytes)?;
 
         Ok(OodFrame {
             trace_states,
+            randcons_eval,
             evaluations,
         })
     }

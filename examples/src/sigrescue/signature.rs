@@ -1,6 +1,4 @@
-use crate::{
-    utils::rescue::{Hash, Rescue128},
-};
+use crate::utils::rescue::{Hash, Rescue128};
 use winterfell::{
     crypto::MerkleTree,
     math::{fields::f128::BaseElement, FieldElement},
@@ -12,8 +10,7 @@ pub struct AggPublicKey {
 }
 
 impl AggPublicKey {
-    pub fn new( keys: Vec<[BaseElement; 2]>) -> Self {
-
+    pub fn new(keys: Vec<[BaseElement; 2]>) -> Self {
         let mut leaves: Vec<Hash> = Vec::new();
         for key in keys.iter() {
             leaves.push(Rescue128::digest(key));

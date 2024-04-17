@@ -1,12 +1,12 @@
 use super::{
-    rescue, AggPublicKey, BaseElement,DefaultRandomCoin,  ElementHasher, FieldElement, RingSigAir,
-    PhantomData, ProofOptions, Prover, PublicInputs, TraceTable, HASH_CYCLE_LENGTH,
-    SIGN_LENGTH, TRACE_WIDTH, 
+    rescue, AggPublicKey, BaseElement, DefaultRandomCoin, ElementHasher, FieldElement, PhantomData,
+    ProofOptions, Prover, PublicInputs, RingSigAir, TraceTable, HASH_CYCLE_LENGTH, SIGN_LENGTH,
+    TRACE_WIDTH,
 };
+use rand_utils::rand_value;
 #[cfg(feature = "concurrent")]
 use winterfell::iterators::*;
 use winterfell::Trace;
-use rand_utils::rand_value;
 
 // PROVER
 // ================================================================================================
@@ -42,16 +42,15 @@ impl<H: ElementHasher> RingSigProver<H> {
         root: &AggPublicKey,
         signer_sk: &[BaseElement; 2],
         signer_idx: u128,
-        eventid:BaseElement,
+        eventid: BaseElement,
     ) -> TraceTable<BaseElement> {
-
         // get the authentication path of signer's index
         let key_path = root.get_leaf_path(signer_idx as usize);
         let key_path = &key_path[1..];
 
         // define the execution trace length
         let trace_length = SIGN_LENGTH + HASH_CYCLE_LENGTH * (key_path.len());
-    
+
         // pad the trace length to a power of 2
         let padding_length = trace_length.next_power_of_two();
         let mut trace = TraceTable::new(TRACE_WIDTH, padding_length);
@@ -63,7 +62,6 @@ impl<H: ElementHasher> RingSigProver<H> {
         }
         index_bit.pop();
 
-  
         let mut state = vec![BaseElement::ZERO; trace.main_trace_width()];
         let mut step = 0;
 
@@ -77,13 +75,11 @@ impl<H: ElementHasher> RingSigProver<H> {
         trace.update_row(step, &state);
         step += 1;
 
-    
         while step < HASH_CYCLE_LENGTH {
             rescue::apply_round(&mut state[2..], step - 1);
             trace.update_row(step, &state);
             step += 1;
         }
-
 
         // define the trace of hashing the signer's secret key, resulting in public keys
         state[1] = BaseElement::ZERO;
@@ -102,7 +98,7 @@ impl<H: ElementHasher> RingSigProver<H> {
         }
 
         // define the trace of hashing public keys
-        state[1]= BaseElement::ZERO;
+        state[1] = BaseElement::ZERO;
         state[4..].fill(BaseElement::ZERO);
         trace.update_row(step, &state);
         step += 1;
@@ -112,31 +108,29 @@ impl<H: ElementHasher> RingSigProver<H> {
             let cycle_num = i / HASH_CYCLE_LENGTH;
             let cycle_pos = i % HASH_CYCLE_LENGTH;
 
-            if cycle_pos <  HASH_CYCLE_LENGTH - 1 {
+            if cycle_pos < HASH_CYCLE_LENGTH - 1 {
                 rescue::apply_round(&mut state[2..], cycle_pos);
-                let rand1:u64 = rand_value();
+                let rand1: u64 = rand_value();
                 state[0] = BaseElement::from(rand1);
-
             } else {
+                let branch_rand1: u64 = rand_value();
+                let branch_rand2: u64 = rand_value();
 
-                let branch_rand1:u64 = rand_value();
-                let branch_rand2:u64 = rand_value();
-               
                 let branch_node = match key_path.get(cycle_num) {
                     Some(v) => v.to_elements(),
-                    None => [BaseElement::from(branch_rand1),BaseElement::from(branch_rand2)]
-                    //None => Default::default(),
+                    None => [
+                        BaseElement::from(branch_rand1),
+                        BaseElement::from(branch_rand2),
+                    ], //None => Default::default(),
                 };
                 let index_bit = BaseElement::new((signer_idx >> cycle_num) & 1);
 
                 if index_bit == BaseElement::ZERO {
-
                     // if index bit is zero, new branch node goes into registers [3, 4]; values
                     // in registers [1, 2] (the accumulated hash) remain unchanged
                     state[4] = branch_node[0];
                     state[5] = branch_node[1];
                 } else {
-
                     // if index bit is one, accumulated hash goes into registers [3, 4],
                     // and new branch nodes goes into registers [1, 2]
                     state[4] = state[2];
@@ -150,9 +144,8 @@ impl<H: ElementHasher> RingSigProver<H> {
                 // set the index bit
                 state[0] = index_bit;
 
-                let rand1:u64 = rand_value();
+                let rand1: u64 = rand_value();
                 state[1] = BaseElement::from(rand1);
-               
             }
             trace.update_row(step, &state);
             step += 1;

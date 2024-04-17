@@ -1,4 +1,4 @@
-use super::{TRACE_WIDTH,SIGN_LENGTH};
+use super::{SIGN_LENGTH, TRACE_WIDTH};
 use crate::utils::rescue::{self, CYCLE_LENGTH};
 use crate::utils::{are_equal, is_zero, not, EvaluationResult};
 use winterfell::math::ToElements;
@@ -15,7 +15,7 @@ use winterfell::{
 pub struct PublicInputs {
     pub pub_key_root: [BaseElement; 2],
     pub num_pub_keys: usize,
-    pub tag:[BaseElement; 2],
+    pub tag: [BaseElement; 2],
     pub eventid: BaseElement,
 }
 
@@ -32,10 +32,10 @@ pub struct RingSigAir {
     context: AirContext<BaseElement>,
     pub_key_root: [BaseElement; 2],
     num_pub_keys: usize,
-    tag:[BaseElement; 2],
-    eventid:BaseElement,
+    tag: [BaseElement; 2],
+    eventid: BaseElement,
 }
-    
+
 impl Air for RingSigAir {
     type BaseField = BaseElement;
     type PublicInputs = PublicInputs;
@@ -70,17 +70,14 @@ impl Air for RingSigAir {
         //assertion requires that the value in the specified `column` at the specified `step` is equal to the provided `value`.
         let num_cycles = self.num_pub_keys.next_power_of_two();
         let idx_length = (num_cycles as f32).log2() as usize;
-        let tag_pos = CYCLE_LENGTH-1;
+        let tag_pos = CYCLE_LENGTH - 1;
         let last_step = SIGN_LENGTH + idx_length * CYCLE_LENGTH - 1;
 
         let assertions = vec![
             // assert the input is the signing message
-
             Assertion::single(2, tag_pos, self.tag[0]),
             Assertion::single(3, tag_pos, self.tag[1]),
-
             Assertion::single(3, 0, self.eventid),
-
             Assertion::single(2, last_step, self.pub_key_root[0]),
             Assertion::single(3, last_step, self.pub_key_root[1]),
         ];
@@ -101,36 +98,41 @@ impl Air for RingSigAir {
         debug_assert_eq!(TRACE_WIDTH, next.len());
 
         // spit periodic values into flags and Rescue round constants
-        let tag_flag=periodic_values[0];
+        let tag_flag = periodic_values[0];
         let hash_flag = periodic_values[1];
         let ark = &periodic_values[2..];
-      
-        rescue::enforce_round(
-            result,
-            &current[2..],
-            &next[2..],
-            ark,
-            hash_flag,
-        );
+
+        rescue::enforce_round(result, &current[2..], &next[2..], ark, hash_flag);
 
         let hash_init_flag = not(hash_flag);
-        result.agg_constraint(0, hash_init_flag, (tag_flag - E::ONE) * (next[0] - E::ONE) * are_equal(current[2], next[2])* are_equal(current[3], next[3]));
+        result.agg_constraint(
+            0,
+            hash_init_flag,
+            (tag_flag - E::ONE)
+                * (next[0] - E::ONE)
+                * are_equal(current[2], next[2])
+                * are_equal(current[3], next[3]),
+        );
 
-        result.agg_constraint(1, hash_init_flag,  (tag_flag - E::ONE) *(next[0]) * are_equal(current[2], next[4]) * are_equal(current[3], next[5]));
+        result.agg_constraint(
+            1,
+            hash_init_flag,
+            (tag_flag - E::ONE)
+                * (next[0])
+                * are_equal(current[2], next[4])
+                * are_equal(current[3], next[5]),
+        );
 
-        result.agg_constraint(2, hash_init_flag, tag_flag  * are_equal(current[1], next[2]));
+        result.agg_constraint(2, hash_init_flag, tag_flag * are_equal(current[1], next[2]));
 
-        result.agg_constraint(3, hash_flag,  are_equal(current[1], next[1]));
+        result.agg_constraint(3, hash_flag, are_equal(current[1], next[1]));
 
         let value = next[0] * (next[0] - E::ONE);
         result.agg_constraint(4, hash_init_flag, is_zero(value));
 
-        result.agg_constraint(5, hash_flag,tag_flag*  are_equal(current[1], current[2]));
-
-
+        result.agg_constraint(5, hash_flag, tag_flag * are_equal(current[1], current[2]));
     }
 
-   
     fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
         let mut result = vec![];
         let num_cycles = self.num_pub_keys.next_power_of_two();
@@ -139,8 +141,8 @@ impl Air for RingSigAir {
 
         let padding_length = last_step.next_power_of_two();
         let mut counter = vec![BaseElement::ZERO; padding_length];
-        counter[0]=BaseElement::ONE;
-        counter[CYCLE_LENGTH-1]=BaseElement::ONE;
+        counter[0] = BaseElement::ONE;
+        counter[CYCLE_LENGTH - 1] = BaseElement::ONE;
         result.push(counter);
 
         result.push(HASH_CYCLE_MASK.to_vec());
@@ -153,7 +155,6 @@ impl Air for RingSigAir {
     }
 }
 
-
 const HASH_CYCLE_MASK: [BaseElement; CYCLE_LENGTH] = [
     BaseElement::ONE,
     BaseElement::ONE,
@@ -164,4 +165,3 @@ const HASH_CYCLE_MASK: [BaseElement; CYCLE_LENGTH] = [
     BaseElement::ONE,
     BaseElement::ZERO,
 ];
-

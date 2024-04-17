@@ -182,10 +182,7 @@ impl<E: FieldElement> DeepComposer<E> {
             .collect()
     }
 
-    pub fn compose_random_evaluations(
-        &self,
-        queried_evaluations: Table<E>,
-    ) -> Vec<E> {
+    pub fn compose_random_evaluations(&self, queried_evaluations: Table<E>) -> Vec<E> {
         let n = queried_evaluations.num_rows();
         let mut result = Vec::<E>::with_capacity(n);
         for query_values in queried_evaluations.rows() {

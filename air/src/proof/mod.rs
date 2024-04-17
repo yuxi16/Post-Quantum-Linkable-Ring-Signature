@@ -166,19 +166,19 @@ impl StarkProof {
         for _ in 0..num_trace_segments {
             trace_queries.push(Queries::read_from(&mut source)?);
         }
-       
+
         // parse the rest of the proof
         let proof = StarkProof {
             context,
             commitments,
             trace_queries,
             constraint_queries: Queries::read_from(&mut source)?,
-            random_queries:Queries::read_from(&mut source)?,
+            random_queries: Queries::read_from(&mut source)?,
             ood_frame: OodFrame::read_from(&mut source)?,
             fri_proof: FriProof::read_from(&mut source)?,
             pow_nonce: source.read_u64()?,
         };
-      
+
         if source.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);
         }

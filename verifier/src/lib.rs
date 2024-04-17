@@ -154,20 +154,20 @@ where
     // constraint composition polynomial.
     let trace_commitments = channel.read_trace_commitments();
 
-    let msg=H::hash(b"test");
+    let msg = H::hash(b"test");
 
     // reseed the coin with the commitment to the main trace segment
-    public_coin.reseed(trace_commitments[0],msg);
+    public_coin.reseed(trace_commitments[0], msg);
 
     // process auxiliary trace segments (if any), to build a set of random elements for each segment
     let mut aux_trace_rand_elements = AuxTraceRandElements::<E>::new();
-    let msg=H::hash(b"test");
+    let msg = H::hash(b"test");
     for (i, commitment) in trace_commitments.iter().skip(1).enumerate() {
         let rand_elements = air
             .get_aux_trace_segment_random_elements(i, &mut public_coin)
             .map_err(|_| VerifierError::RandomCoinError)?;
         aux_trace_rand_elements.add_segment_elements(rand_elements);
-        public_coin.reseed(*commitment,msg);
+        public_coin.reseed(*commitment, msg);
     }
 
     // build random coefficients for the composition polynomial
@@ -181,11 +181,14 @@ where
     // z from the coin; in the interactive version of the protocol, the verifier sends this point z
     // to the prover, and the prover evaluates trace and constraint composition polynomials at z,
     // and sends the results back to the verifier.
+    let randcons_commitment = channel.read_randcons_commitment();
+    public_coin.reseed(randcons_commitment, msg);
+
     let constraint_commitment = channel.read_constraint_commitment();
-    public_coin.reseed(constraint_commitment,msg);
+    public_coin.reseed(constraint_commitment, msg);
 
     let random_commitment = channel.read_random_commitment();
-    public_coin.reseed(random_commitment,msg);
+    public_coin.reseed(random_commitment, msg);
 
     let z = public_coin
         .draw::<E>()
@@ -197,6 +200,7 @@ where
     // read the out-of-domain trace frames (the main trace frame and auxiliary trace frame, if
     // provided) sent by the prover and evaluate constraints over them; also, reseed the public
     // coin with the OOD frames received from the prover.
+
     let ood_trace_frame = channel.read_ood_trace_frame();
     let ood_main_trace_frame = ood_trace_frame.main_frame();
     let ood_aux_trace_frame = ood_trace_frame.aux_frame();
@@ -208,7 +212,7 @@ where
         aux_trace_rand_elements,
         z,
     );
-    public_coin.reseed(H::hash_elements(ood_trace_frame.values()),msg);
+    public_coin.reseed(H::hash_elements(ood_trace_frame.values()), msg);
 
     // read evaluations of composition polynomial columns sent by the prover, and reduce them into
     // a single value by computing \sum_{i=0}^{m-1}(z^(i * l) * value_i), where value_i is the
@@ -225,10 +229,13 @@ where
             .fold(E::ZERO, |result, (i, &value)| {
                 result + z.exp_vartime(((i * (air.trace_length())) as u32).into()) * value
             });
-    public_coin.reseed(H::hash_elements(&ood_constraint_evaluations),msg);
+    public_coin.reseed(H::hash_elements(&ood_constraint_evaluations), msg);
+
+    let odd_randcons = channel.read_ood_randcons_frame();
+    public_coin.reseed(H::hash_elements(&odd_randcons), msg);
 
     // finally, make sure the values are the same
-    if ood_constraint_evaluation_1 != ood_constraint_evaluation_2 {
+    if ood_constraint_evaluation_1 + odd_randcons[0] != ood_constraint_evaluation_2 {
         return Err(VerifierError::InconsistentOodConstraintEvaluations);
     }
 
@@ -279,7 +286,7 @@ where
         channel.read_queried_trace_states(&query_positions)?;
     let queried_constraint_evaluations = channel.read_constraint_evaluations(&query_positions)?;
 
-    let queried_random_evaluations=channel.read_random_evaluations(&query_positions)?;
+    let queried_random_evaluations = channel.read_random_evaluations(&query_positions)?;
 
     // 6 ----- DEEP composition -------------------------------------------------------------------
     // compute evaluations of the DEEP composition polynomial at the queried positions
@@ -292,8 +299,8 @@ where
     );
     let c_composition = composer
         .compose_constraint_evaluations(queried_constraint_evaluations, ood_constraint_evaluations);
-    let r_value=composer.compose_random_evaluations(queried_random_evaluations);
-    let deep_evaluations = composer.combine_compositions(t_composition, c_composition,r_value);
+    let r_value = composer.compose_random_evaluations(queried_random_evaluations);
+    let deep_evaluations = composer.combine_compositions(t_composition, c_composition, r_value);
 
     // 7 ----- Verify low-degree proof -------------------------------------------------------------
     // make sure that evaluations of the DEEP composition polynomial we computed in the previous
@@ -302,4 +309,3 @@ where
         .verify(&mut channel, &deep_evaluations, &query_positions)
         .map_err(VerifierError::FriVerificationFailed)
 }
-

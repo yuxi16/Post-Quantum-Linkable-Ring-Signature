@@ -92,7 +92,7 @@ pub fn verify_proof(
         options.folding_factor(),
     )
     .unwrap();
-    let mut coin = DefaultRandomCoin::<Blake3>::new(&[]);
+    let mut coin = DefaultRandomCoin::<Blake3>::new(&[], <Blake3 as Hasher>::Digest::default());
     let verifier = FriVerifier::new(&mut channel, &mut coin, options.clone(), max_degree)?;
     let queried_evaluations = positions
         .iter()

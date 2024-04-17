@@ -8,9 +8,10 @@ use super::{
     TransitionConstraintDegree,
 };
 use crate::{AuxTraceRandElements, FieldExtension};
-use crypto::{hashers::Blake3_256, DefaultRandomCoin, RandomCoin};
+use crypto::{hashers::Blake3_256, DefaultRandomCoin, Hasher, RandomCoin};
 use math::{fields::f64::BaseElement, get_power_series, polynom, FieldElement, StarkField};
 use utils::collections::{BTreeMap, Vec};
+type Blake3 = Blake3_256<BaseElement>;
 
 // PERIODIC COLUMNS
 // ================================================================================================
@@ -289,7 +290,10 @@ pub fn build_context<B: StarkField>(
 }
 
 pub fn build_prng() -> DefaultRandomCoin<Blake3_256<BaseElement>> {
-    RandomCoin::new(&[BaseElement::ZERO; 32])
+    RandomCoin::new(
+        &[BaseElement::ZERO; 32],
+        <Blake3 as Hasher>::Digest::default(),
+    )
 }
 
 pub fn build_sequence_poly(values: &[BaseElement], trace_length: usize) -> Vec<BaseElement> {

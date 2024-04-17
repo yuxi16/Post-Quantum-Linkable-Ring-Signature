@@ -8,10 +8,9 @@ use std::io::Write;
 use std::time::Instant;
 use structopt::StructOpt;
 //use winterfell::StarkProof;
-
-use examples::{fibonacci, rescue, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
-use examples::{sigrescue};
+use examples::sigrescue;
+use examples::{fibonacci, rescue, ExampleOptions, ExampleType};
 
 // EXAMPLE RUNNER
 // ================================================================================================
@@ -38,9 +37,7 @@ fn main() {
         }
         ExampleType::Rescue { chain_length } => rescue::get_example(&options, chain_length),
         #[cfg(feature = "std")]
-        ExampleType::SigRescue { num_signers } => {
-            sigrescue::get_example(&options, num_signers)
-        }
+        ExampleType::SigRescue { num_signers } => sigrescue::get_example(&options, num_signers),
     }
     .expect("The example failed to initialize.");
 
@@ -64,20 +61,17 @@ fn main() {
         //     "Proof security: {} bits ({} proven)",
         //     conjectured_security_level, proven_security_level,
         // );
-        debug!(
-            "Proof security: {} bits",
-            conjectured_security_level,
-        );
+        debug!("Proof security: {} bits", conjectured_security_level,);
     }
 
     #[cfg(not(feature = "std"))]
     debug!("Proof security: {} bits", conjectured_security_level);
 
-    #[cfg(feature = "std")]
-    debug!(
-        "Proof hash: {}",
-        hex::encode(blake3::hash(&proof_bytes).as_bytes())
-    );
+    // #[cfg(feature = "std")]
+    // debug!(
+    //     "Proof hash: {}",
+    //     hex::encode(blake3::hash(&proof_bytes).as_bytes())
+    // );
 
     // verify the proof
     debug!("---------------------");

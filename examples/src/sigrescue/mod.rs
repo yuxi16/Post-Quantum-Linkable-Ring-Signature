@@ -1,20 +1,20 @@
-use crate::utils::rescue::{self, CYCLE_LENGTH as HASH_CYCLE_LENGTH, Rescue128};
 use super::Example;
+use crate::utils::rescue::{self, Rescue128, CYCLE_LENGTH as HASH_CYCLE_LENGTH};
 use crate::{Blake3_192, Blake3_256, ExampleOptions, HashFunction, Sha3_256};
 use core::marker::PhantomData;
 use log::debug;
+use rand_utils::{prng_vector, rand_value};
 use std::time::Instant;
 use winterfell::{
     crypto::{DefaultRandomCoin, ElementHasher},
     math::{fields::f128::BaseElement, FieldElement},
     ProofOptions, Prover, StarkProof, Trace, TraceTable, VerifierError,
 };
-use rand_utils::{prng_vector,rand_value};
 mod signature;
 use signature::AggPublicKey;
 
 mod air;
-use air::{RingSigAir, PublicInputs};
+use air::{PublicInputs, RingSigAir};
 
 mod prover;
 use prover::RingSigProver;
@@ -26,15 +26,14 @@ const TRACE_WIDTH: usize = 8;
 const SIGN_LENGTH: usize = 24;
 const NUM_QUERIES: usize = 28;
 const BLOWUP_FACTOR: usize = 8;
-const SIGNER_IDX:u128 = 1;
-const EVENTID:u8 = 2;
-
+const SIGNER_IDX: u128 = 1;
+const EVENTID: u8 = 2;
 
 pub fn get_example(
     options: &ExampleOptions,
     num_signers: usize,
 ) -> Result<Box<dyn Example>, String> {
-    let (_, hash_fn) = options.to_proof_options(NUM_QUERIES, BLOWUP_FACTOR); 
+    let (_, hash_fn) = options.to_proof_options(NUM_QUERIES, BLOWUP_FACTOR);
 
     match hash_fn {
         HashFunction::Blake3_192 => Ok(Box::new(RingSigExample::<Blake3_192>::new(
@@ -57,8 +56,7 @@ pub struct RingSigExample<H: ElementHasher> {
     options: ProofOptions,
     root: AggPublicKey,
     signer_sk_key: [BaseElement; 2],
-    // message: [BaseElement; 2],
-    pks: Vec<[BaseElement;2]>,
+    pks: Vec<[BaseElement; 2]>,
     signer_idx: u128,
     tag: [BaseElement; 2],
     eventid: BaseElement,
@@ -66,33 +64,39 @@ pub struct RingSigExample<H: ElementHasher> {
 }
 
 impl<H: ElementHasher> RingSigExample<H> {
-    pub fn new(num_signers: usize, options: &ExampleOptions) -> Self { //num signer excludes real signer
+    pub fn new(num_signers: usize, options: &ExampleOptions) -> Self {
+        //num signer excludes real signer
 
-        let num_signers = (num_signers+1).next_power_of_two()-1;
+        let num_signers = (num_signers + 1).next_power_of_two() - 1;
         // message to be signed
         // let message = "test message";
 
         let now = Instant::now();
 
-        let sk_sequence  = prng_vector::<BaseElement>([rand_value(); 32], num_signers+1);
+        let sk_sequence = prng_vector::<BaseElement>([rand_value(); 32], num_signers + 1);
         let mut sk_vec = Vec::new();
         let mut c = 0;
         for _ in 0..=num_signers {
-            sk_vec.push([sk_sequence[c],BaseElement::ONE]);
-            c+=1;
+            sk_vec.push([sk_sequence[c], BaseElement::ONE]);
+            c += 1;
         }
-        let pk_vec = sk_vec.iter().map(|sk| Rescue128::digest(sk).to_elements()).collect::<Vec<_>>();
+        let pk_vec = sk_vec
+            .iter()
+            .map(|sk| Rescue128::digest(sk).to_elements())
+            .collect::<Vec<_>>();
 
         let signer_sk = sk_vec[SIGNER_IDX as usize];
         debug!(
             "Generate public keys and secret keys in {} ms",
             now.elapsed().as_millis()
         );
+        let bytes1 = BaseElement::elements_as_bytes(&pk_vec[0]);
+        debug!("Public key size: {:.1} bytes", bytes1.len());
 
-        let tag_input = [signer_sk[0],BaseElement::from(EVENTID)];
-        let tag = Rescue128::digest(& tag_input).to_elements();
+        let tag_input = [signer_sk[0], BaseElement::from(EVENTID)];
+        let tag = Rescue128::digest(&tag_input).to_elements();
 
-        let eventid=BaseElement::from(EVENTID);
+        let eventid = BaseElement::from(EVENTID);
 
         let now = Instant::now();
         let root = AggPublicKey::new(pk_vec.clone());
@@ -102,7 +106,7 @@ impl<H: ElementHasher> RingSigExample<H> {
             now.elapsed().as_millis()
         );
 
-        let (options, _) = options.to_proof_options(NUM_QUERIES, BLOWUP_FACTOR); 
+        let (options, _) = options.to_proof_options(NUM_QUERIES, BLOWUP_FACTOR);
 
         RingSigExample {
             options,
@@ -118,14 +122,11 @@ impl<H: ElementHasher> RingSigExample<H> {
     }
 }
 
-
-
 impl<H: ElementHasher> Example for RingSigExample<H>
 where
     H: ElementHasher<BaseField = BaseElement>,
 {
     fn prove(&self) -> StarkProof {
-
         debug!(
             "Generating proof for verifying ring signature with {} members \n\
             ---------------------",
@@ -133,17 +134,18 @@ where
         );
 
         // create a prover
-        let prover = RingSigProver::<H>::new(
-            &self.root,
-            self.tag,
-            self.eventid,
-            self.options.clone(),
-        );
+        let prover =
+            RingSigProver::<H>::new(&self.root, self.tag, self.eventid, self.options.clone());
 
         // generate execution trace
         let now = Instant::now();
-        let trace = prover.build_trace(&self.root,  &self.signer_sk_key,self.signer_idx,self.eventid);
-        
+        let trace = prover.build_trace(
+            &self.root,
+            &self.signer_sk_key,
+            self.signer_idx,
+            self.eventid,
+        );
+
         let trace_length = trace.length();
         debug!(
             "Generated execution trace of {} registers and {} steps in {} ms",
@@ -153,10 +155,10 @@ where
         );
 
         debug!(
-            "Generated the tag {:?} for linkable ring signature",
-            self.tag,
+            "Generated the tag for linkable ring signature",
+            // self.tag,
         );
-       
+
         // trace.get_column(1).chunks(8).for_each(|row| println!("{:?}", row));
         // println!("values");
         //println!("values: {}",trace.get(1,7));
@@ -166,7 +168,6 @@ where
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
-
         //let msg = message_to_elements("test message".as_bytes());
         let pub_inputs = PublicInputs {
             pub_key_root: self.root.root().to_elements(),
@@ -174,17 +175,17 @@ where
             tag: self.tag,
             eventid: self.eventid,
         };
-        winterfell::verify::<RingSigAir, H,DefaultRandomCoin<H>>(proof, pub_inputs)
+        winterfell::verify::<RingSigAir, H, DefaultRandomCoin<H>>(proof, pub_inputs)
     }
 
     fn verify_with_wrong_inputs(&self, proof: StarkProof) -> Result<(), VerifierError> {
         let pub_inputs = PublicInputs {
             pub_key_root: self.root.root().to_elements(),
-            num_pub_keys: self.pks.len()+1,
+            num_pub_keys: self.pks.len() + 1,
             tag: self.tag,
             eventid: self.eventid,
         };
-        winterfell::verify::<RingSigAir, H,DefaultRandomCoin<H>>(proof, pub_inputs)
+        winterfell::verify::<RingSigAir, H, DefaultRandomCoin<H>>(proof, pub_inputs)
     }
 }
 

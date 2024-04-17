@@ -63,7 +63,10 @@ use math::{
     //fft::infer_degree,
     fft,
     fields::{CubeExtension, QuadExtension},
-    ExtensibleField, FieldElement, StarkField, ToElements,
+    ExtensibleField,
+    FieldElement,
+    StarkField,
+    ToElements,
 };
 
 pub use crypto;
@@ -82,7 +85,7 @@ pub use matrix::{ColMatrix, RowMatrix};
 
 mod constraints;
 use constraints::ConstraintEvaluator;
-pub use constraints::{CompositionPoly, ConstraintCommitment,RandomCommitment};
+pub use constraints::{CompositionPoly, ConstraintCommitment, RandomCommitment};
 
 mod composer;
 use composer::DeepCompositionPoly;
@@ -215,7 +218,6 @@ pub trait Prover {
             pub_inputs_elements,
         );
 
-        
         // 1 ----- Commit to the execution trace --------------------------------------------------
 
         // build computation domain; this is used later for polynomial evaluations
@@ -303,13 +305,15 @@ pub trait Prover {
         let constraint_coeffs = channel.get_constraint_composition_coeffs();
         let evaluator = ConstraintEvaluator::new(&air, aux_trace_rand_elements, constraint_coeffs);
         let constraint_evaluations = evaluator.evaluate(trace_commitment.trace_table(), &domain);
+
+        let ccd = constraint_evaluations.clone();
+
         #[cfg(feature = "std")]
         debug!(
             "Evaluated constraints over domain of 2^{} elements in {} ms",
             constraint_evaluations.num_rows().ilog2(),
             now.elapsed().as_millis()
         );
-
         // 3 ----- commit to constraint evaluations -----------------------------------------------
 
         // first, build constraint composition polynomial from the constraint evaluation table:
@@ -320,8 +324,20 @@ pub trait Prover {
         //   trace_length - 1
         #[cfg(feature = "std")]
         let now = Instant::now();
-        let composition_poly =
-            constraint_evaluations.into_poly(air.context().num_constraint_composition_columns())?;
+        let mut randcons_temp = Vec::new();
+        randcons_temp.push(channel.get_randcons_coeffs());
+        let temp = randcons_temp[0].clone();
+        let randcons_coe = randcons_temp[0].clone();
+
+        let randomcons_poly = ColMatrix::new(randcons_temp);
+        let randcons_commitment = self.build_random_commitment::<E>(&randomcons_poly, &domain);
+        channel.commit_randcons(randcons_commitment.root());
+
+        // let composition_poly =
+        //     constraint_evaluations.into_poly(air.context().num_constraint_composition_columns())?;
+
+        let composition_poly = constraint_evaluations
+            .into_poly_rand(air.context().num_constraint_composition_columns(), temp)?;
         #[cfg(feature = "std")]
         debug!(
             "Converted constraint evaluations into {} composition polynomial columns of degree {} in {} ms",
@@ -329,8 +345,6 @@ pub trait Prover {
             composition_poly.column_degree(),
             now.elapsed().as_millis()
         );
-
-        // println!("length {}",composition_poly.column_len());
 
         // then, build a commitment to the evaluations of the composition polynomial columns
         let constraint_commitment =
@@ -340,28 +354,17 @@ pub trait Prover {
         // Merkle tree into the channel
         channel.commit_constraints(constraint_commitment.root());
 
-
-        // 4 ----- commit to random evaluations 
+        // 4 ----- commit to random evaluations
         let mut rand_temp = Vec::new();
         rand_temp.push(channel.get_randpoly_coeffs());
 
         // println!("length {}",rand_temp[0].len());
-        let random_poly=ColMatrix::new(rand_temp);
+        let random_poly = ColMatrix::new(rand_temp);
 
         // println!("length {}",random_poly.num_rows());
 
         // build a commitment to the evaluations of the random polynomial
-        let random_commitment =
-            self.build_random_commitment::<E>(&random_poly, &domain);
-
-        // let random_poly_evaluations = fft::evaluate_poly_with_offset(
-        //     &random_poly,
-        //     &domain.trace_twiddles(),
-        //     domain.offset(),
-        //     domain.trace_to_lde_blowup(),
-        // );
-
-        // let random_merkle_root: MerkleTree<Self::HashFn>=self.commit_elements(&random_poly_evaluations);
+        let random_commitment = self.build_random_commitment::<E>(&random_poly, &domain);
         channel.commit_random(random_commitment.root());
 
         // 5 ----- build DEEP composition polynomial ----------------------------------------------
@@ -376,7 +379,6 @@ pub trait Prover {
         // is drawn from, and we can potentially save on performance by only drawing this point
         // from an extension field, rather than increasing the size of the field overall.
         let z = channel.get_ood_point();
-       
 
         // evaluate trace and constraint polynomials at the OOD point z, and send the results to
         // the verifier. the trace polynomials are actually evaluated over two points: z and z * g,
@@ -386,6 +388,11 @@ pub trait Prover {
 
         let ood_evaluations = composition_poly.evaluate_at(z);
         channel.send_ood_constraint_evaluations(&ood_evaluations);
+
+        let randomcons_poly = ccd.into_ranpoly(randcons_coe)?;
+
+        let ood_randcons_evaluations = randomcons_poly.evaluate_at(z);
+        channel.send_ood_randcons_evaluations(&ood_randcons_evaluations);
 
         // draw random coefficients to use during DEEP polynomial composition, and use them to
         // initialize the DEEP composition polynomial
@@ -401,7 +408,7 @@ pub trait Prover {
 
         // merge random polynomial into the DEEP composition polynomial;
         deep_composition_poly.add_rand_poly(random_poly);
-  
+
         #[cfg(feature = "std")]
         debug!(
             "Built DEEP composition polynomial of degree {} in {} ms",
@@ -411,7 +418,7 @@ pub trait Prover {
 
         // make sure the degree of the DEEP composition polynomial is equal to trace polynomial
         // degree minus 1.
-        assert_eq!(domain.trace_length()-1, deep_composition_poly.degree());
+        assert_eq!(domain.trace_length() - 1, deep_composition_poly.degree());
 
         // 6 ----- evaluate DEEP composition polynomial over LDE domain ---------------------------
         #[cfg(feature = "std")]
@@ -460,7 +467,7 @@ pub trait Prover {
 
         // 9 ----- build proof object -------------------------------------------------------------
         #[cfg(feature = "std")]
-        let now = Instant::now();
+        // let now = Instant::now();
 
         // generate FRI proof
         let fri_proof = fri_prover.build_proof(&query_positions);
@@ -478,11 +485,11 @@ pub trait Prover {
         // state of the trace at that position + Merkle authentication path
 
         let random_queries = random_commitment.query(&query_positions);
-
         // build the proof object
-        let proof = channel.build_proof(trace_queries, constraint_queries, random_queries,fri_proof);
-        #[cfg(feature = "std")]
-        debug!("Built proof object in {} ms", now.elapsed().as_millis());
+        let proof =
+            channel.build_proof(trace_queries, constraint_queries, random_queries, fri_proof);
+        // #[cfg(feature = "std")]
+        // debug!("Built proof object in {} ms", now.elapsed().as_millis());
 
         Ok(proof)
     }
@@ -542,12 +549,9 @@ pub trait Prover {
     where
         E: FieldElement<BaseField = Self::BaseField>,
     {
-      
         #[cfg(feature = "std")]
-        let random_evaluations = RowMatrix::evaluate_polys_over::<DEFAULT_SEGMENT_WIDTH>(
-            &random_poly,
-            domain,
-        );
+        let random_evaluations =
+            RowMatrix::evaluate_polys_over::<DEFAULT_SEGMENT_WIDTH>(&random_poly, domain);
 
         let commitment = random_evaluations.commit_to_rows();
         let random_commitment = RandomCommitment::new(random_evaluations, commitment);
@@ -598,7 +602,4 @@ pub trait Prover {
         );
         constraint_commitment
     }
-
-
-
 }

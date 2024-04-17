@@ -25,12 +25,14 @@ pub struct VerifierChannel<E: FieldElement, H: ElementHasher<BaseField = E::Base
     // trace queries
     trace_roots: Vec<H::Digest>,
     trace_queries: Option<TraceQueries<E, H>>,
+    // radomness for constraint queries
+    randcons_root: H::Digest,
     // constraint queries
     constraint_root: H::Digest,
     constraint_queries: Option<ConstraintQueries<E, H>>,
     //random queries
     random_root: H::Digest,
-    random_queries:Option<RandomQueries<E, H>>,
+    random_queries: Option<RandomQueries<E, H>>,
     // FRI proof
     fri_roots: Option<Vec<H::Digest>>,
     fri_layer_proofs: Vec<BatchMerkleProof<H>>,
@@ -38,6 +40,7 @@ pub struct VerifierChannel<E: FieldElement, H: ElementHasher<BaseField = E::Base
     fri_remainder: Option<Vec<E>>,
     fri_num_partitions: usize,
     // out-of-domain frame
+    odd_randcons_evaluations: Option<Vec<E>>,
     ood_trace_frame: Option<TraceOodFrame<E>>,
     ood_constraint_evaluations: Option<Vec<E>>,
     // query proof-of-work
@@ -76,7 +79,7 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
         let fri_options = air.options().to_fri_options();
 
         // --- parse commitments ------------------------------------------------------------------
-        let (trace_roots, constraint_root, random_root,fri_roots) = commitments
+        let (trace_roots, randcons_root, constraint_root, random_root, fri_roots) = commitments
             .parse::<H>(
                 num_trace_segments,
                 fri_options.num_fri_layers(lde_domain_size),
@@ -86,7 +89,7 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
         // --- parse trace, constraint and random queries -------------------------------------------------
         let trace_queries = TraceQueries::new(trace_queries, air)?;
         let constraint_queries = ConstraintQueries::new(constraint_queries, air)?;
-        let random_queries:RandomQueries<E,H> = RandomQueries::new(random_queries, air)?;
+        let random_queries: RandomQueries<E, H> = RandomQueries::new(random_queries, air)?;
 
         // --- parse FRI proofs -------------------------------------------------------------------
         let fri_num_partitions = fri_proof.num_partitions();
@@ -98,9 +101,10 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
             .map_err(|err| VerifierError::ProofDeserializationError(err.to_string()))?;
 
         // --- parse out-of-domain evaluation frame -----------------------------------------------
-        let (ood_trace_evaluations, ood_constraint_evaluations) = ood_frame
-            .parse(main_trace_width, aux_trace_width, constraint_frame_width)
-            .map_err(|err| VerifierError::ProofDeserializationError(err.to_string()))?;
+        let (ood_trace_evaluations, odd_randcons_evaluations, ood_constraint_evaluations) =
+            ood_frame
+                .parse(main_trace_width, aux_trace_width, constraint_frame_width)
+                .map_err(|err| VerifierError::ProofDeserializationError(err.to_string()))?;
         let ood_trace_frame =
             TraceOodFrame::new(ood_trace_evaluations, main_trace_width, aux_trace_width);
 
@@ -108,12 +112,14 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
             // trace queries
             trace_roots,
             trace_queries: Some(trace_queries),
+            //random queries
+            randcons_root,
             // constraint queries
             constraint_root,
             constraint_queries: Some(constraint_queries),
             //random queries
             random_root,
-            random_queries:Some(random_queries),
+            random_queries: Some(random_queries),
             // FRI proof
             fri_roots: Some(fri_roots),
             fri_layer_proofs,
@@ -122,6 +128,7 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
             fri_num_partitions,
             // out-of-domain evaluation
             ood_trace_frame: Some(ood_trace_frame),
+            odd_randcons_evaluations: Some(odd_randcons_evaluations),
             ood_constraint_evaluations: Some(ood_constraint_evaluations),
             // query seed
             pow_nonce,
@@ -137,6 +144,10 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
     /// commitment for each trace segment.
     pub fn read_trace_commitments(&self) -> &[H::Digest] {
         &self.trace_roots
+    }
+
+    pub fn read_randcons_commitment(&self) -> H::Digest {
+        self.randcons_root
     }
 
     /// Returns constraint evaluation commitment sent by the prover.
@@ -155,6 +166,10 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
     /// polynomials are also included.
     pub fn read_ood_trace_frame(&mut self) -> TraceOodFrame<E> {
         self.ood_trace_frame.take().expect("already read")
+    }
+
+    pub fn read_ood_randcons_frame(&mut self) -> Vec<E> {
+        self.odd_randcons_evaluations.take().expect("already read")
     }
 
     /// Returns evaluations of composition polynomial columns at z^m, where z is the out-of-domain
@@ -210,14 +225,13 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
     pub fn read_random_evaluations(
         &mut self,
         positions: &[usize],
-    )-> Result<Table<E>, VerifierError> {
+    ) -> Result<Table<E>, VerifierError> {
         let queries = self.random_queries.take().expect("already read");
         MerkleTree::verify_batch(&self.random_root, positions, &queries.query_proof)
-        .map_err(|_| VerifierError::ConstraintQueryDoesNotMatchCommitment)?;
+            .map_err(|_| VerifierError::ConstraintQueryDoesNotMatchCommitment)?;
 
-    Ok(queries.evaluation)
+        Ok(queries.evaluation)
     }
-
 }
 
 // FRI VERIFIER CHANNEL IMPLEMENTATION

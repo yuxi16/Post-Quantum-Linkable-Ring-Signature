@@ -20,7 +20,7 @@ const MIN_FRAGMENT_SIZE: usize = 16;
 
 // CONSTRAINT EVALUATION TABLE
 // ================================================================================================
-
+#[derive(Clone)]
 pub struct ConstraintEvaluationTable<'a, E: FieldElement> {
     evaluations: Vec<Vec<E>>,
     divisors: Vec<ConstraintDivisor<E::BaseField>>,
@@ -159,7 +159,39 @@ impl<'a, E: FieldElement> ConstraintEvaluationTable<'a, E> {
     /// `num_cols` is the number of necessary columns (of length `trace_length`) needed to store
     /// the coefficients of the constraint composition polynomial and is needed by
     /// `CompositionPoly::new`.
-    pub fn into_poly(self, num_cols: usize) -> Result<CompositionPoly<E>, ProverError> {
+    // pub fn into_poly(self, num_cols: usize) -> Result<CompositionPoly<E>, ProverError> {
+    //     // allocate memory for the combined polynomial
+    //     let mut combined_poly = E::zeroed_vector(self.num_rows());
+
+    //     // iterate over all columns of the constraint evaluation table, divide each column
+    //     // by the evaluations of its corresponding divisor, and add all resulting evaluations
+    //     // together into a single vector
+    //     for (column, divisor) in self.evaluations.into_iter().zip(self.divisors.iter()) {
+    //         // divide the column by the divisor and accumulate the result into combined_poly
+    //         acc_column(column, divisor, self.domain, &mut combined_poly);
+    //     }
+
+    //     // at this point, combined_poly contains evaluations of the combined constraint polynomial;
+    //     // we interpolate this polynomial to transform it into coefficient form.
+    //     let inv_twiddles = fft::get_inv_twiddles::<E::BaseField>(combined_poly.len());
+    //     fft::interpolate_poly_with_offset(&mut combined_poly, &inv_twiddles, self.domain.offset());
+
+    //     let trace_length = self.domain.trace_length();
+
+    //     // chunck the high degree polynomials into smaller ones
+    //     Ok(CompositionPoly::new(combined_poly, trace_length, num_cols))
+    // }
+
+    pub fn into_ranpoly(self, poly: Vec<E>) -> Result<CompositionPoly<E>, ProverError> {
+        let trace_length = self.domain.trace_length();
+        Ok(CompositionPoly::new(poly, trace_length, 1))
+    }
+
+    pub fn into_poly_rand(
+        self,
+        num_cols: usize,
+        rand: Vec<E>,
+    ) -> Result<CompositionPoly<E>, ProverError> {
         // allocate memory for the combined polynomial
         let mut combined_poly = E::zeroed_vector(self.num_rows());
 
@@ -177,6 +209,13 @@ impl<'a, E: FieldElement> ConstraintEvaluationTable<'a, E> {
         fft::interpolate_poly_with_offset(&mut combined_poly, &inv_twiddles, self.domain.offset());
 
         let trace_length = self.domain.trace_length();
+
+        // randomize the composition polynomial
+        for i in 0..rand.len() {
+            combined_poly[i] = combined_poly[i] + rand[i];
+        }
+
+        // chunck the high degree polynomials into smaller ones
         Ok(CompositionPoly::new(combined_poly, trace_length, num_cols))
     }
 

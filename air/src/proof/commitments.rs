@@ -31,12 +31,14 @@ impl Commitments {
     /// Returns a new Commitments struct initialized with the provided commitments.
     pub fn new<H: Hasher>(
         trace_roots: Vec<H::Digest>,
+        randcons_root: H::Digest,
         constraint_root: H::Digest,
         random_root: H::Digest,
         fri_roots: Vec<H::Digest>,
     ) -> Self {
         let mut bytes = Vec::new();
         bytes.write(trace_roots);
+        bytes.write(randcons_root);
         bytes.write(constraint_root);
         bytes.write(random_root);
         bytes.write(fri_roots);
@@ -69,11 +71,23 @@ impl Commitments {
         self,
         num_trace_segments: usize,
         num_fri_layers: usize,
-    ) -> Result<(Vec<H::Digest>, H::Digest,H::Digest, Vec<H::Digest>), DeserializationError> {
+    ) -> Result<
+        (
+            Vec<H::Digest>,
+            H::Digest,
+            H::Digest,
+            H::Digest,
+            Vec<H::Digest>,
+        ),
+        DeserializationError,
+    > {
         let mut reader = SliceReader::new(&self.0);
 
         // parse trace commitments
         let trace_commitments = H::Digest::read_batch_from(&mut reader, num_trace_segments)?;
+
+        // parse random evaluation commitment:
+        let randcons_commitment = H::Digest::read_from(&mut reader)?;
 
         // parse constraint evaluation commitment:
         let constraint_commitment = H::Digest::read_from(&mut reader)?;
@@ -88,7 +102,13 @@ impl Commitments {
         if reader.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);
         }
-        Ok((trace_commitments, constraint_commitment,random_commitment, fri_commitments))
+        Ok((
+            trace_commitments,
+            randcons_commitment,
+            constraint_commitment,
+            random_commitment,
+            fri_commitments,
+        ))
     }
 }
 
